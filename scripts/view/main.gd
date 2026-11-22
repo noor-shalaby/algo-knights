@@ -55,17 +55,24 @@ func _center_board() -> void:
 	board_view.position = ((viewport_size - board_px_size) * 0.5).floor()
 
 func _create_initial_units(board: BoardState) -> Array:
-	var left_x: int = 0
-	var right_x: int = board.width - 1
-	var mid_y: int = int(board.height / 2.0)
-	var top_y: int = max(0, mid_y - 2)
-	var bot_y: int = min(board.height - 1, mid_y + 2)
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+
+	var left_cols: Array[int] = [0, 1]
+	var right_cols: Array[int] = [max(0, board.width - 2), board.width - 1]
+
+	var team0_spawns: Array[Vector2i] = _pick_random_tiles(board, left_cols, 2, rng, {})
+	var used_tiles: Dictionary = {}
+	for pos: Vector2i in team0_spawns:
+		used_tiles[pos] = true
+
+	var team1_spawns: Array[Vector2i] = _pick_random_tiles(board, right_cols, 2, rng, used_tiles)
 
 	return [
 		{
 			"id": 1,
 			"team": 0,
-			"pos": Vector2i(left_x, top_y),
+			"pos": team0_spawns[0],
 			"hp": 30,
 			"max_hp": 30,
 			"atk": 10,
@@ -75,7 +82,7 @@ func _create_initial_units(board: BoardState) -> Array:
 		{
 			"id": 2,
 			"team": 0,
-			"pos": Vector2i(left_x, bot_y),
+			"pos": team0_spawns[1],
 			"hp": 30,
 			"max_hp": 30,
 			"atk": 10,
@@ -85,7 +92,7 @@ func _create_initial_units(board: BoardState) -> Array:
 		{
 			"id": 3,
 			"team": 1,
-			"pos": Vector2i(right_x, top_y),
+			"pos": team1_spawns[0],
 			"hp": 30,
 			"max_hp": 30,
 			"atk": 10,
@@ -95,7 +102,7 @@ func _create_initial_units(board: BoardState) -> Array:
 		{
 			"id": 4,
 			"team": 1,
-			"pos": Vector2i(right_x, bot_y),
+			"pos": team1_spawns[1],
 			"hp": 30,
 			"max_hp": 30,
 			"atk": 10,
@@ -103,6 +110,51 @@ func _create_initial_units(board: BoardState) -> Array:
 			"range": 1,
 		},
 	]
+
+func _pick_random_tiles(
+	board: BoardState,
+	cols: Array[int],
+	count: int,
+	rng: RandomNumberGenerator,
+	blocked: Dictionary
+) -> Array[Vector2i]:
+	var pool: Array[Vector2i] = []
+
+	for x: int in cols:
+		if x < 0 or x >= board.width:
+			continue
+		for y: int in range(board.height):
+			var pos := Vector2i(x, y)
+			if blocked.has(pos):
+				continue
+			if board.get_terrain_cost(pos) < 0:
+				continue
+			pool.append(pos)
+
+	# Fisher-Yates shuffle
+	for i: int in range(pool.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp: Vector2i = pool[i]
+		pool[i] = pool[j]
+		pool[j] = tmp
+
+	var chosen: Array[Vector2i] = []
+	for i: int in range(min(count, pool.size())):
+		chosen.append(pool[i])
+
+	# Fallback if a map ever has too few walkable tiles in those columns
+	while chosen.size() < count:
+		for y: int in range(board.height):
+			for x: int in range(board.width):
+				var fallback := Vector2i(x, y)
+				if not blocked.has(fallback) and not chosen.has(fallback) and board.get_terrain_cost(fallback) >= 0:
+					chosen.append(fallback)
+					if chosen.size() >= count:
+						break
+			if chosen.size() >= count:
+				break
+
+	return chosen
 
 func _on_algo_selected(index: int) -> void:
 	match index:
