@@ -1,49 +1,187 @@
 class_name CSPGenerator
 extends RefCounted
 
-static func generate_map(width: int, height: int, obstacle_count: int, min_spawn_dist: int) -> BoardState:
+## Generates a constrained tactical map using backtracking search with
+## forward-checking / connectivity & spawn-clearance constraints.
+static func generate_map(
+	width: int = 8,
+	height: int = 8,
+	wall_count: int = 8,
+	forest_count: int = 6,
+	seed_val: int = -1
+) -> BoardState:
 	var rng := RandomNumberGenerator.new()
-	rng.randomize()
+	if seed_val >= 0:
+		rng.seed = seed_val
+	else:
+		rng.randomize()
 
-	for _attempt in range(200):
-		var state := BoardState.new()
-		state.width = width
-		state.height = height
-		state.terrain.resize(width * height)
-		state.terrain.fill(0)
+	var protected_tiles: Dictionary = _get_protected_spawns(width, height)
+	var candidates: Array[Vector2i] = []
+	for y: int in range(height):
+		for x: int in range(width):
+			var pos := Vector2i(x, y)
+			if not protected_tiles.has(pos):
+				candidates.append(pos)
 
-		# Place obstacles with basic backtracking/retry if invalid
-		var placed := 0
-		var guard := 0
-		while placed < obstacle_count and guard < obstacle_count * 10:
-			guard += 1
-			var x := rng.randi_range(0, width - 1)
-			var y := rng.randi_range(0, height - 1)
-			var idx := y * width + x
-			if state.terrain[idx] == 0:
-				state.terrain[idx] = 2
-				placed += 1
+	# Shuffle candidates once per attempt
+	for i: int in range(candidates.size() - 1, 0, -1):
+		var j: int = rng.randi_range(0, i)
+		var tmp: Vector2i = candidates[i]
+		candidates[i] = candidates[j]
+		candidates[j] = tmp
 
-		var spawn_a := Vector2i(0, rng.randi_range(0, height - 1))
-		var spawn_b := Vector2i(width - 1, rng.randi_range(0, height - 1))
-		state.terrain[spawn_a.y * width + spawn_a.x] = 0
-		state.terrain[spawn_b.y * width + spawn_b.x] = 0
+	var board := BoardState.new(width, height, BoardState.TERRAIN_PLAIN)
+	var solved: bool = _backtrack(
+		board,
+		candidates,
+		0,
+		wall_count,
+		forest_count,
+		protected_tiles,
+		rng
+	)
 
-		# Constraint 1: Minimum distance between spawns
-		if abs(spawn_a.x - spawn_b.x) + abs(spawn_a.y - spawn_b.y) < min_spawn_dist:
-			continue
+	if not solved:
+		# Fallback to a guaranteed open/connected layout if constraints are too tight
+		var fallback := BoardState.new(width, height, BoardState.TERRAIN_PLAIN)
+		_place_safe_obstacles(fallback, candidates, wall_count, forest_count, protected_tiles)
+		return fallback
 
-		# Constraint 2: Connectivity check via A* / BFS
-		var path_check := Pathfinder.find_path(state, spawn_a, spawn_b, "astar")
-		if path_check["found"]:
-			state.set_meta("spawn_a", spawn_a)
-			state.set_meta("spawn_b", spawn_b)
-			return state
+	return board
 
-	# Fallback clean grid if tight constraints need relaxation
-	var fallback := BoardState.new()
-	fallback.width = width
-	fallback.height = height
-	fallback.terrain.resize(width * height)
-	fallback.terrain.fill(0)
-	return fallback
+static func _get_protected_spawns(width: int, height: int) -> Dictionary:
+	var left_x: int = 0
+	var right_x: int = width - 1
+	var mid_y: int = int(height / 2.0)
+	var top_y: int = max(0, mid_y - 2)
+	var bot_y: int = min(height - 1, mid_y + 2)
+
+	var spawns: Array[Vector2i] = [
+		Vector2i(left_x, top_y),
+		Vector2i(left_x, bot_y),
+		Vector2i(right_x, top_y),
+		Vector2i(right_x, bot_y),
+	]
+
+	var protected: Dictionary = {}
+	for s: Vector2i in spawns:
+		protected[s] = true
+		# Keep immediate 4-way neighbors clear so units aren't trapped on spawn
+		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
+			var n: Vector2i = s + d
+			if n.x >= 0 and n.x < width and n.y >= 0 and n.y < height:
+				protected[n] = true
+
+	return protected
+
+static func _backtrack(
+	board: BoardState,
+	candidates: Array[Vector2i],
+	idx: int,
+	walls_left: int,
+	forests_left: int,
+	protected: Dictionary,
+	rng: RandomNumberGenerator
+) -> bool:
+	if walls_left == 0 and forests_left == 0:
+		return _is_valid_board(board, protected)
+
+	if idx >= candidates.size():
+		return false
+
+	var pos: Vector2i = candidates[idx]
+	var remaining_slots: int = candidates.size() - idx
+	if walls_left + forests_left > remaining_slots:
+		return false
+
+	# Ordered domain choices (randomized slightly per node for variety)
+	var choices: Array[int] = [BoardState.TERRAIN_PLAIN]
+	if walls_left > 0:
+		choices.append(BoardState.TERRAIN_WALL)
+	if forests_left > 0:
+		choices.append(BoardState.TERRAIN_FOREST)
+
+	if choices.size() > 1 and rng.randf() < 0.5:
+		choices.reverse()
+
+	for t: int in choices:
+		board.set_terrain(pos, t)
+		var next_walls: int = walls_left - (1 if t == BoardState.TERRAIN_WALL else 0)
+		var next_forests: int = forests_left - (1 if t == BoardState.TERRAIN_FOREST else 0)
+
+		# Prune early if walls block connectivity among protected spawn tiles
+		if t != BoardState.TERRAIN_WALL or _spawns_connected(board, protected):
+			if _backtrack(board, candidates, idx + 1, next_walls, next_forests, protected, rng):
+				return true
+
+		board.set_terrain(pos, BoardState.TERRAIN_PLAIN)
+
+	return false
+
+static func _is_valid_board(board: BoardState, protected: Dictionary) -> bool:
+	if not _spawns_connected(board, protected):
+		return false
+
+	# Avoid 2x2 solid wall clumps that look awkward on small grids
+	for y: int in range(board.height - 1):
+		for x: int in range(board.width - 1):
+			if (
+				board.get_terrain(Vector2i(x, y)) == BoardState.TERRAIN_WALL
+				and board.get_terrain(Vector2i(x + 1, y)) == BoardState.TERRAIN_WALL
+				and board.get_terrain(Vector2i(x, y + 1)) == BoardState.TERRAIN_WALL
+				and board.get_terrain(Vector2i(x + 1, y + 1)) == BoardState.TERRAIN_WALL
+			):
+				return false
+
+	return true
+
+static func _spawns_connected(board: BoardState, protected: Dictionary) -> bool:
+	var walkables: Array[Vector2i] = []
+	for p: Vector2i in protected.keys():
+		if board.get_terrain(p) != BoardState.TERRAIN_WALL:
+			walkables.append(p)
+
+	if walkables.size() <= 1:
+		return true
+
+	var start: Vector2i = walkables[0]
+	var visited: Dictionary = {start: true}
+	var queue: Array[Vector2i] = [start]
+	var dirs: Array[Vector2i] = [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]
+
+	while not queue.is_empty():
+		var cur: Vector2i = queue.pop_front()
+		for d: Vector2i in dirs:
+			var nxt: Vector2i = cur + d
+			if board.in_bounds(nxt) and not visited.has(nxt):
+				if board.get_terrain(nxt) != BoardState.TERRAIN_WALL:
+					visited[nxt] = true
+					queue.append(nxt)
+
+	for w: Vector2i in walkables:
+		if not visited.has(w):
+			return false
+
+	return true
+
+static func _place_safe_obstacles(
+	board: BoardState,
+	candidates: Array[Vector2i],
+	wall_count: int,
+	forest_count: int,
+	protected: Dictionary
+) -> void:
+	var placed_walls: int = 0
+	var placed_forests: int = 0
+
+	for pos: Vector2i in candidates:
+		if placed_walls < wall_count:
+			board.set_terrain(pos, BoardState.TERRAIN_WALL)
+			if _spawns_connected(board, protected):
+				placed_walls += 1
+			else:
+				board.set_terrain(pos, BoardState.TERRAIN_PLAIN)
+		elif placed_forests < forest_count:
+			board.set_terrain(pos, BoardState.TERRAIN_FOREST)
+			placed_forests += 1

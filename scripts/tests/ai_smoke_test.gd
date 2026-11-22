@@ -1,27 +1,38 @@
 extends SceneTree
 
 func _initialize() -> void:
-	var state := CSPGenerator.generate_map(8, 8, 8, 6)
-	var spawn_a: Vector2i = state.get_meta("spawn_a", Vector2i(0, 0))
-	var spawn_b: Vector2i = state.get_meta("spawn_b", Vector2i(7, 7))
-
-	state.units = [
-		{"id": 1, "team": 0, "pos": spawn_a, "hp": 30, "move_pts": 3, "atk": 10, "range": 1},
-		{"id": 2, "team": 1, "pos": spawn_b, "hp": 30, "move_pts": 3, "atk": 10, "range": 1},
+	var board := CSPGenerator.generate_map(8, 8, 6, 4, 42)
+	board.units = [
+		{"id": 1, "team": 0, "pos": Vector2i(0, 2), "hp": 30, "max_hp": 30, "atk": 10, "move_pts": 3, "range": 1},
+		{"id": 2, "team": 0, "pos": Vector2i(0, 5), "hp": 30, "max_hp": 30, "atk": 10, "move_pts": 3, "range": 1},
+		{"id": 3, "team": 1, "pos": Vector2i(7, 2), "hp": 30, "max_hp": 30, "atk": 10, "move_pts": 3, "range": 1},
+		{"id": 4, "team": 1, "pos": Vector2i(7, 5), "hp": 30, "max_hp": 30, "atk": 10, "move_pts": 3, "range": 1},
 	]
 
-	var path_res := Pathfinder.find_path(state, spawn_a, spawn_b, "astar")
-	print("A* path found: ", path_res["found"], " | cost: ", path_res["cost"], " | expanded: ", path_res["nodes_expanded"])
+	for mode: String in ["astar", "ucs", "greedy"]:
+		var res: Dictionary = Pathfinder.find_path(board, Vector2i(0, 2), Vector2i(7, 2), mode, 1)
+		print("Mode=%s found=%s cost=%d nodes=%d len=%d" % [
+			mode,
+			str(res["found"]),
+			res["cost"],
+			res["nodes_expanded"],
+			res["path"].size()
+		])
 
-	var ai := MinimaxAI.new()
-	ai.max_depth = 3
-	ai.ai_team = 1
-	var decision := ai.choose_action(
-		state,
+	var minimax := MinimaxAI.new()
+	minimax.ai_team = 1
+	minimax.max_depth = 2
+	var ai_out: Dictionary = minimax.choose_action(
+		board,
 		GameRules.get_legal_actions,
 		GameRules.apply_action,
-		GameRules.evaluate,
+		func(s: BoardState) -> float: return GameRules.evaluate(s, 1),
 		GameRules.is_terminal
 	)
-	print("AI chose: ", decision["action"], " | score: ", decision["score"], " | nodes: ", decision["nodes"])
+	print("Minimax action=%s score=%.2f nodes=%d" % [
+		str(ai_out["action"]),
+		ai_out["score"],
+		ai_out["nodes"]
+	])
+
 	quit()
