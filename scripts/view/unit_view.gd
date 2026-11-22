@@ -1,25 +1,43 @@
 class_name UnitView
 extends Node2D
 
+const HIT_FLASH_SHADER: Shader = preload("res://shaders/hit_flash.gdshader")
+const TEAM_0_FRAMES: SpriteFrames = preload("res://assets/sprites/team0_frames.tres")
+const TEAM_1_FRAMES: SpriteFrames = preload("res://assets/sprites/team1_frames.tres")
+
 @onready var anim_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hp_bar: ProgressBar = $HPBar
 
 var unit_id: int = -1
 var is_dying: bool = false
+var _flash_mat: ShaderMaterial
+
+func _ready() -> void:
+	_flash_mat = ShaderMaterial.new()
+	_flash_mat.shader = HIT_FLASH_SHADER
+	_flash_mat.set_shader_parameter("flash_amount", 0.0)
+	anim_sprite.material = _flash_mat
 
 func setup(unit_data: Dictionary, world_pos: Vector2) -> void:
 	unit_id = unit_data["id"]
 	is_dying = false
 	position = world_pos
+	anim_sprite.position = Vector2.ZERO
+	modulate = Color.WHITE
+	anim_sprite.modulate = Color.WHITE
+	hp_bar.visible = true
 	hp_bar.max_value = max(1, unit_data.get("max_hp", unit_data["hp"]))
 	update_from_data(unit_data)
 
 	if unit_data["team"] == 0:
-		anim_sprite.modulate = Color(0.45, 0.75, 1.0) # Blue tint for Player
+		anim_sprite.sprite_frames = TEAM_0_FRAMES
 		anim_sprite.flip_h = false
 	else:
-		anim_sprite.modulate = Color(1.0, 0.45, 0.45) # Red tint for AI
+		anim_sprite.sprite_frames = TEAM_1_FRAMES
 		anim_sprite.flip_h = true
+
+	if _flash_mat != null:
+		_flash_mat.set_shader_parameter("flash_amount", 0.0)
 
 	play_idle()
 
@@ -28,6 +46,30 @@ func update_from_data(unit_data: Dictionary) -> void:
 	if is_dying:
 		return
 	visible = unit_data["hp"] > 0
+
+func play_hit_impact(strength: float = 1.5, duration: float = 0.14) -> void:
+	anim_sprite.position = Vector2.ZERO
+
+	var tween := create_tween()
+	tween.set_parallel(true)
+
+	if _flash_mat != null:
+		tween.tween_method(
+			func(val: float): _flash_mat.set_shader_parameter("flash_amount", val),
+			1.0,
+			0.0,
+			duration
+		)
+
+	var shake_tween := create_tween()
+	var step_time: float = duration / 4.0
+	shake_tween.tween_property(anim_sprite, "position:x", strength, step_time * 0.5)
+	shake_tween.tween_property(anim_sprite, "position:x", -strength, step_time)
+	shake_tween.tween_property(anim_sprite, "position:x", strength * 0.5, step_time)
+	shake_tween.tween_property(anim_sprite, "position:x", 0.0, step_time * 1.5)
+
+	await tween.finished
+	anim_sprite.position = Vector2.ZERO
 
 func play_idle() -> void:
 	if is_dying:
@@ -48,12 +90,12 @@ func play_die() -> void:
 		return
 	is_dying = true
 	hp_bar.visible = false
+	anim_sprite.position = Vector2.ZERO
 
 	if anim_sprite.sprite_frames != null and anim_sprite.sprite_frames.has_animation("die"):
 		anim_sprite.play("die")
 		await anim_sprite.animation_finished
 
-	# Optional subtle fade-out after the death frames finish
 	var fade := create_tween()
 	fade.tween_property(self, "modulate:a", 0.0, 0.2)
 	await fade.finished

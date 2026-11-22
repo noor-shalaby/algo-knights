@@ -126,10 +126,13 @@ func _resolve_action_and_sync(act: Dictionary) -> void:
 	if target_id != -1:
 		var target_data: Dictionary = _get_unit_by_id(target_id)
 		var target_view: UnitView = board_view.get_unit_view(target_id)
-		if not target_data.is_empty() and target_data["hp"] <= 0 and target_view != null:
-			# Update HP bar to 0 while keeping the view visible for the death animation
-			target_view.hp_bar.value = 0
-			await target_view.play_die()
+		if not target_data.is_empty() and target_view != null:
+			target_view.hp_bar.value = max(0, target_data["hp"])
+			if target_data["hp"] > 0:
+				await target_view.play_hit_impact(2.5, 0.16)
+			else:
+				await target_view.play_hit_impact(3.0, 0.12)
+				await target_view.play_die()
 
 	board_view.sync_units(state)
 
