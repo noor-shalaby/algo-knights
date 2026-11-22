@@ -61,6 +61,7 @@ func clear_highlights() -> void:
 	highlight_layer.clear()
 
 func highlight_moves(tiles: Array[Vector2i]) -> void:
+	clear_highlights()
 	for pos: Vector2i in tiles:
 		highlight_layer.set_cell(pos, 1, Vector2i(0, 0))
 

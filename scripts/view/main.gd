@@ -181,8 +181,14 @@ func _on_tile_clicked(grid_pos: Vector2i) -> void:
 
 	var clicked_unit: Dictionary = _get_unit_at(grid_pos)
 
-	# Select a living friendly unit
+	# Select or deselect a living friendly unit
 	if not clicked_unit.is_empty() and clicked_unit["team"] == 0 and clicked_unit["hp"] > 0:
+		if clicked_unit["id"] == selected_unit_id:
+			selected_unit_id = -1
+			board_view.clear_highlights()
+			_refresh_ui()
+			return
+
 		selected_unit_id = clicked_unit["id"]
 		_show_unit_options(clicked_unit)
 		_refresh_ui()
