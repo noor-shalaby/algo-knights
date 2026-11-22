@@ -1,0 +1,24 @@
+[gd_scene format=3 uid="uid://ncojd27lnym7"]
+
+[ext_resource type="Texture2D" uid="uid://dfscrfh8ngqd2" path="res://assets/Sprite Sheets/SwordFighter/SwordFighter_LongHair_Blue1.png" id="1_1l4p3"]
+[ext_resource type="Script" uid="uid://csddq8affp0ma" path="res://scripts/view/unit_view.gd" id="1_d6paq"]
+
+[node name="UnitView" type="Node2D" unique_id=1966297701]
+script = ExtResource("1_d6paq")
+
+[node name="Sprite2D" type="Sprite2D" parent="." unique_id=951528199]
+texture = ExtResource("1_1l4p3")
+hframes = 4
+vframes = 14
+region_enabled = true
+region_rect = Rect2(0, 0, 128, 448)
+
+[node name="HPBar" type="ProgressBar" parent="." unique_id=8170184]
+offset_left = -8.0
+offset_top = -14.0
+offset_right = 8.0
+offset_bottom = -10.0
+mouse_filter = 2
+max_value = 30.0
+value = 30.0
+show_percentage = false
