@@ -119,6 +119,20 @@ func _show_unit_options(unit: Dictionary) -> void:
 			mode, last_stats["cost"], last_stats["nodes_expanded"]
 		]
 
+func _resolve_action_and_sync(act: Dictionary) -> void:
+	var target_id: int = act.get("target_id", -1)
+	GameRules.apply_action(state, act)
+
+	if target_id != -1:
+		var target_data: Dictionary = _get_unit_by_id(target_id)
+		var target_view: UnitView = board_view.get_unit_view(target_id)
+		if not target_data.is_empty() and target_data["hp"] <= 0 and target_view != null:
+			# Update HP bar to 0 while keeping the view visible for the death animation
+			target_view.hp_bar.value = 0
+			await target_view.play_die()
+
+	board_view.sync_units(state)
+
 func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 	is_busy = true
 	board_view.clear_overlays()
@@ -126,11 +140,13 @@ func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 	var mode: String = _get_search_mode()
 	var path_res: Dictionary = Pathfinder.find_path(state, unit["pos"], act["move_to"], mode)
 	var u_view: UnitView = board_view.get_unit_view(unit["id"])
-	if u_view != null and path_res["found"]:
-		await u_view.move_along_path(path_res["path"], board_view.terrain_layer)
+	if u_view != null:
+		if path_res["found"]:
+			await u_view.move_along_path(path_res["path"], board_view.terrain_layer)
+		if act.has("target_id"):
+			await u_view.play_attack()
 
-	GameRules.apply_action(state, act)
-	board_view.sync_units(state)
+	await _resolve_action_and_sync(act)
 	selected_unit_id = -1
 
 	if GameRules.is_terminal(state):
@@ -173,12 +189,13 @@ func _run_ai_turn() -> void:
 		if not actor.is_empty():
 			var path_res: Dictionary = Pathfinder.find_path(state, actor["pos"], chosen_act["move_to"], _get_search_mode())
 			var u_view: UnitView = board_view.get_unit_view(actor["id"])
-			if u_view != null and path_res["found"]:
-				board_view.highlight_path(path_res["path"])
-				await u_view.move_along_path(path_res["path"], board_view.terrain_layer)
+			if u_view != null:
+				if path_res["found"]:
+					await u_view.move_along_path(path_res["path"], board_view.terrain_layer)
+				if chosen_act.has("target_id"):
+					await u_view.play_attack()
 
-		GameRules.apply_action(state, chosen_act)
-		board_view.sync_units(state)
+		await _resolve_action_and_sync(chosen_act)
 		board_view.clear_overlays()
 
 	if GameRules.is_terminal(state):

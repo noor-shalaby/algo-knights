@@ -3,15 +3,150 @@
 [ext_resource type="Texture2D" uid="uid://dfscrfh8ngqd2" path="res://assets/Sprite Sheets/SwordFighter/SwordFighter_LongHair_Blue1.png" id="1_1l4p3"]
 [ext_resource type="Script" uid="uid://csddq8affp0ma" path="res://scripts/view/unit_view.gd" id="1_d6paq"]
 
+[sub_resource type="AtlasTexture" id="AtlasTexture_qjnmw"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(0, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_fcgdy"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(32, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_78yye"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(64, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bufwl"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(96, 64, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_2dspe"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(0, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_5igsx"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(32, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_mv7uu"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(64, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_u8x5x"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(96, 96, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_d6paq"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(0, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_bl5wp"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(32, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6arpi"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(64, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_co3v2"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(96, 0, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_6m14l"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(0, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_44f53"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(32, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_leyqv"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(64, 32, 32, 32)
+
+[sub_resource type="AtlasTexture" id="AtlasTexture_28djg"]
+atlas = ExtResource("1_1l4p3")
+region = Rect2(96, 32, 32, 32)
+
+[sub_resource type="SpriteFrames" id="SpriteFrames_1l4p3"]
+animations = [{
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_qjnmw")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_fcgdy")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_78yye")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bufwl")
+}],
+"loop": 0,
+"name": &"attack",
+"speed": 10.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_2dspe")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_5igsx")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_mv7uu")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_u8x5x")
+}],
+"loop": 0,
+"name": &"die",
+"speed": 8.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_d6paq")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_bl5wp")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6arpi")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_co3v2")
+}],
+"loop": 1,
+"name": &"idle",
+"speed": 4.0
+}, {
+"frames": [{
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_6m14l")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_44f53")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_leyqv")
+}, {
+"duration": 1.0,
+"texture": SubResource("AtlasTexture_28djg")
+}],
+"loop": 1,
+"name": &"walk",
+"speed": 8.0
+}]
+
 [node name="UnitView" type="Node2D" unique_id=1966297701]
 script = ExtResource("1_d6paq")
 
-[node name="Sprite2D" type="Sprite2D" parent="." unique_id=951528199]
-texture = ExtResource("1_1l4p3")
-hframes = 4
-vframes = 14
-region_enabled = true
-region_rect = Rect2(0, 0, 128, 448)
+[node name="AnimatedSprite2D" type="AnimatedSprite2D" parent="." unique_id=101236827]
+sprite_frames = SubResource("SpriteFrames_1l4p3")
+animation = &"die"
+autoplay = "idle"
+frame = 3
+frame_progress = 1.0
 
 [node name="HPBar" type="ProgressBar" parent="." unique_id=8170184]
 offset_left = -8.0

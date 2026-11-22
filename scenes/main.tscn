@@ -7,7 +7,7 @@
 script = ExtResource("1_0wfyh")
 
 [node name="Camera2D" type="Camera2D" parent="." unique_id=825994078]
-position = Vector2(320, 180)
+position = Vector2(160, 90)
 
 [node name="BoardView" parent="." unique_id=2031687445 instance=ExtResource("1_o5qli")]
 
@@ -16,32 +16,29 @@ position = Vector2(320, 180)
 [node name="TopBar" type="HBoxContainer" parent="HUD" unique_id=544168224]
 anchors_preset = 10
 anchor_right = 1.0
+offset_bottom = 20.0
 grow_horizontal = 2
 
 [node name="TurnLabel" type="Label" parent="HUD/TopBar" unique_id=1138580287]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(120, 0)
+custom_minimum_size = Vector2(80, 0)
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+size_flags_horizontal = 0
+theme_override_font_sizes/font_size = 8
 text = "Player Turn (Team 0)"
 
 [node name="EndTurnButton" type="Button" parent="HUD/TopBar" unique_id=1442222241]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+size_flags_horizontal = 2
+theme_override_font_sizes/font_size = 8
 text = "End Turn"
 
-[node name="AlgoOption" type="OptionButton" parent="HUD" unique_id=720083385]
+[node name="AlgoOption" type="OptionButton" parent="HUD/TopBar" unique_id=720083385]
 unique_name_in_owner = true
-anchors_preset = 5
-anchor_left = 0.5
-anchor_right = 0.5
-offset_left = -46.5
-offset_right = 46.5
-offset_bottom = 25.0
-grow_horizontal = 2
-size_flags_horizontal = 6
-theme_override_font_sizes/font_size = 12
+layout_mode = 2
+size_flags_horizontal = 10
+theme_override_font_sizes/font_size = 8
 item_count = 3
 popup/item_0/text = "astar"
 popup/item_0/id = 0
@@ -50,29 +47,26 @@ popup/item_1/id = 1
 popup/item_2/text = "greedy"
 popup/item_2/id = 2
 
-[node name="NewMapButton" type="Button" parent="HUD" unique_id=1502432739]
+[node name="NewMapButton" type="Button" parent="HUD/TopBar" unique_id=1502432739]
 unique_name_in_owner = true
-anchors_preset = 1
-anchor_left = 1.0
-anchor_right = 1.0
-offset_left = -88.0
-offset_bottom = 25.0
-grow_horizontal = 0
-size_flags_horizontal = 10
-theme_override_font_sizes/font_size = 12
+layout_mode = 2
+size_flags_horizontal = 8
+theme_override_font_sizes/font_size = 8
 text = "New CSP Map"
 
 [node name="DebugPanel" type="PanelContainer" parent="HUD" unique_id=1660389984]
 anchors_preset = 2
 anchor_top = 1.0
 anchor_bottom = 1.0
-offset_top = -40.0
-offset_right = 40.0
+offset_top = -27.0
+offset_right = 136.0
 grow_vertical = 0
 
 [node name="StatsLabel" type="Label" parent="HUD/DebugPanel" unique_id=1251145723]
 unique_name_in_owner = true
 layout_mode = 2
-theme_override_font_sizes/font_size = 12
+size_flags_vertical = 1
+theme_override_font_sizes/font_size = 8
 text = "A* | cost: 9 | nodes: 18
 Minimax d = 3 | score: 12.0 | n: 420"
+vertical_alignment = 1
