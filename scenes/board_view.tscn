@@ -275,6 +275,9 @@ script = ExtResource("1_tp8c8")
 [node name="TerrainLayer" type="TileMapLayer" parent="." unique_id=1801070828]
 tile_set = SubResource("TileSet_lgdl7")
 
+[node name="WallLayer" type="TileMapLayer" parent="." unique_id=738391317]
+tile_set = SubResource("TileSet_lgdl7")
+
 [node name="OutlineOverlay" type="Node2D" parent="." unique_id=495888681]
 
 [node name="UnitsContainer" type="Node2D" parent="." unique_id=1002822642]

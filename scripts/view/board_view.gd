@@ -6,6 +6,7 @@ signal tile_clicked(grid_pos: Vector2i)
 const UNIT_VIEW_SCENE: PackedScene = preload("res://scenes/unit_view.tscn")
 
 @onready var terrain_layer: TileMapLayer = $TerrainLayer
+@onready var wall_layer: TileMapLayer = $WallLayer
 @onready var units_container: Node2D = $UnitsContainer
 @onready var outline_overlay: Node2D = $OutlineOverlay
 
@@ -26,6 +27,8 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func render_terrain(state: BoardState) -> void:
 	terrain_layer.clear()
+	wall_layer.clear()
+
 	for y: int in range(state.height):
 		for x: int in range(state.width):
 			var pos := Vector2i(x, y)
@@ -36,7 +39,8 @@ func render_terrain(state: BoardState) -> void:
 				BoardState.TERRAIN_FOREST:
 					terrain_layer.set_cell(pos, 0, Vector2i(3, 0))
 				BoardState.TERRAIN_WALL:
-					terrain_layer.set_cell(pos, 0, Vector2i(2, 13))
+					terrain_layer.set_cell(pos, 0, Vector2i(3, 2))
+					wall_layer.set_cell(pos, 0, Vector2i(10, 6))
 
 func rebuild_units(state: BoardState) -> void:
 	for child: Node in units_container.get_children():
