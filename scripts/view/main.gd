@@ -98,7 +98,7 @@ func _start_new_match() -> void:
 	if seed_label != null:
 		seed_label.text = " Seed: %d" % _current_seed
 	if seed_input != null and seed_input.text.strip_edges().is_empty():
-		seed_input.placeholder_text = str(_current_seed)
+		seed_input.placeholder_text = "  Paste seed"
 
 	state = CSPGenerator.generate_map(8, 8, 8, 6, _current_seed, _map_preset)
 	state.units = _create_initial_units(state, _current_seed)
