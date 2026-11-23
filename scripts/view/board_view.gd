@@ -8,8 +8,15 @@ const UNIT_VIEW_SCENE: PackedScene = preload("res://scenes/unit_view.tscn")
 @onready var terrain_layer: TileMapLayer = $TerrainLayer
 @onready var highlight_layer: TileMapLayer = $HighlightLayer
 @onready var units_container: Node2D = $UnitsContainer
+@onready var outline_overlay: Node2D = $OutlineOverlay
 
 var _unit_views: Dictionary = {} # unit_id (int) -> UnitView
+var _move_outline_tiles: Array[Vector2i] = []
+var _attack_outline_tiles: Array[Vector2i] = []
+
+func _ready() -> void:
+	if outline_overlay != null and not outline_overlay.draw.is_connected(_on_outline_draw):
+		outline_overlay.draw.connect(_on_outline_draw)
 
 func _unhandled_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
@@ -59,18 +66,58 @@ func get_unit_view(unit_id: int) -> UnitView:
 
 func clear_highlights() -> void:
 	highlight_layer.clear()
+	_move_outline_tiles.clear()
+	_attack_outline_tiles.clear()
+	if outline_overlay != null:
+		outline_overlay.queue_redraw()
 
 func highlight_moves(tiles: Array[Vector2i]) -> void:
 	clear_highlights()
-	for pos: Vector2i in tiles:
-		highlight_layer.set_cell(pos, 1, Vector2i(0, 0))
+	_move_outline_tiles = tiles.duplicate()
+	if outline_overlay != null:
+		outline_overlay.queue_redraw()
 
 func highlight_attacks(tiles: Array[Vector2i]) -> void:
-	for pos: Vector2i in tiles:
-		highlight_layer.set_cell(pos, 1, Vector2i(1, 0))
+	_attack_outline_tiles = tiles.duplicate()
+	if outline_overlay != null:
+		outline_overlay.queue_redraw()
 
 func highlight_path(path: Array) -> void:
 	clear_highlights()
 	for p in path:
 		if p is Vector2i:
 			highlight_layer.set_cell(p, 1, Vector2i(2, 0))
+
+func _on_outline_draw() -> void:
+	var tile_size: float = 16.0
+	if terrain_layer != null and terrain_layer.tile_set != null:
+		tile_size = float(terrain_layer.tile_set.tile_size.x)
+
+	if not _move_outline_tiles.is_empty():
+		_draw_outer_outline(_move_outline_tiles, Color(1.0, 1.0, 1.0, 0.9), tile_size)
+
+	if not _attack_outline_tiles.is_empty():
+		_draw_outer_outline(_attack_outline_tiles, Color(0.95, 0.25, 0.25, 0.95), tile_size)
+
+func _draw_outer_outline(tiles: Array[Vector2i], color: Color, tile_size: float = 16.0) -> void:
+	var tile_set_map: Dictionary = {}
+	for t: Vector2i in tiles:
+		tile_set_map[t] = true
+
+	var thickness: float = 1.0
+	for t: Vector2i in tiles:
+		var local_center: Vector2 = terrain_layer.map_to_local(t)
+		var top_left: Vector2 = outline_overlay.to_local(terrain_layer.to_global(local_center)) - Vector2(tile_size * 0.5, tile_size * 0.5)
+
+		# Top edge
+		if not tile_set_map.has(t + Vector2i(0, -1)):
+			outline_overlay.draw_rect(Rect2(top_left, Vector2(tile_size, thickness)), color)
+		# Bottom edge
+		if not tile_set_map.has(t + Vector2i(0, 1)):
+			outline_overlay.draw_rect(Rect2(top_left + Vector2(0, tile_size - thickness), Vector2(tile_size, thickness)), color)
+		# Left edge
+		if not tile_set_map.has(t + Vector2i(-1, 0)):
+			outline_overlay.draw_rect(Rect2(top_left, Vector2(thickness, tile_size)), color)
+		# Right edge
+		if not tile_set_map.has(t + Vector2i(1, 0)):
+			outline_overlay.draw_rect(Rect2(top_left + Vector2(tile_size - thickness, 0), Vector2(thickness, tile_size)), color)
