@@ -102,7 +102,7 @@ func _on_outline_draw() -> void:
 		_draw_outer_outline(_attack_outline_tiles, Color(0.95, 0.25, 0.25, 0.95), tile_size)
 
 	if not _path_tiles.is_empty():
-		_draw_path_markers(_path_tiles, Color(1.0, 1.0, 0.0, 0.851), tile_size)
+		_draw_path_markers(_path_tiles, Color(0.95, 0.95, 0.25, 0.851), tile_size)
 
 func _draw_outer_outline(tiles: Array[Vector2i], color: Color, tile_size: float = 16.0) -> void:
 	var tile_set_map: Dictionary = {}

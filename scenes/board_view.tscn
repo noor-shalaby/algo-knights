@@ -2,7 +2,6 @@
 
 [ext_resource type="Script" uid="uid://2c47fgy4syv8" path="res://scripts/view/board_view.gd" id="1_tp8c8"]
 [ext_resource type="Texture2D" uid="uid://b0mskyxtql82c" path="res://assets/tiles/FullTileset.png" id="1_u67s4"]
-[ext_resource type="Texture2D" uid="uid://boleubuvr2h7" path="res://assets/tiles/HighlightTileset.png" id="3_tp8c8"]
 
 [sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_qa81e"]
 texture = ExtResource("1_u67s4")
@@ -270,23 +269,11 @@ terrain_set_0/terrain_0/name = "Terrain 0"
 terrain_set_0/terrain_0/color = Color(0.5, 0.34375, 0.25, 1)
 sources/0 = SubResource("TileSetAtlasSource_qa81e")
 
-[sub_resource type="TileSetAtlasSource" id="TileSetAtlasSource_ytdny"]
-texture = ExtResource("3_tp8c8")
-0:0/0 = 0
-1:0/0 = 0
-2:0/0 = 0
-
-[sub_resource type="TileSet" id="TileSet_u67s4"]
-sources/1 = SubResource("TileSetAtlasSource_ytdny")
-
 [node name="BoardView" type="Node2D" unique_id=2031687445]
 script = ExtResource("1_tp8c8")
 
 [node name="TerrainLayer" type="TileMapLayer" parent="." unique_id=1801070828]
 tile_set = SubResource("TileSet_lgdl7")
-
-[node name="HighlightLayer" type="TileMapLayer" parent="." unique_id=2140766650]
-tile_set = SubResource("TileSet_u67s4")
 
 [node name="OutlineOverlay" type="Node2D" parent="." unique_id=495888681]
 
