@@ -19,8 +19,6 @@ const WALL_TILES: Array[Vector2i] = [
 	Vector2i(10, 6),
 	Vector2i(11, 6),
 	Vector2i(12, 6),
-	Vector2i(13, 6),
-	Vector2i(14, 6),
 	Vector2i(10, 7),
 	Vector2i(11, 7),
 	Vector2i(10, 8),
