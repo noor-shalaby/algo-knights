@@ -36,6 +36,8 @@ var _attack_outline_tiles: Array[Vector2i] = []
 var _path_tiles: Array[Vector2i] = []
 var _visited_tiles: Array[Vector2i] = []
 var _frontier_tiles: Array[Vector2i] = []
+var _active_expansion_tile: Vector2i = Vector2i(-1, -1)
+var _has_active_expansion: bool = false
 var show_search_overlay: bool = true
 
 func _ready() -> void:
@@ -100,6 +102,8 @@ func clear_highlights() -> void:
 func clear_search_overlay() -> void:
 	_visited_tiles.clear()
 	_frontier_tiles.clear()
+	_active_expansion_tile = Vector2i(-1, -1)
+	_has_active_expansion = false
 	_redraw_overlay()
 
 func set_search_overlay_enabled(enabled: bool) -> void:
@@ -125,12 +129,27 @@ func highlight_path(path: Array) -> void:
 func highlight_search_data(visited: Array, frontier: Array = []) -> void:
 	_visited_tiles.clear()
 	_frontier_tiles.clear()
+	_active_expansion_tile = Vector2i(-1, -1)
+	_has_active_expansion = false
 	for v in visited:
 		if v is Vector2i:
 			_visited_tiles.append(v)
 	for f in frontier:
 		if f is Vector2i:
 			_frontier_tiles.append(f)
+	_redraw_overlay()
+
+func set_replay_step(visited_so_far: Array, frontier: Array = [], active_tile: Vector2i = Vector2i(-1, -1), has_active: bool = false) -> void:
+	_visited_tiles.clear()
+	_frontier_tiles.clear()
+	for v in visited_so_far:
+		if v is Vector2i:
+			_visited_tiles.append(v)
+	for f in frontier:
+		if f is Vector2i:
+			_frontier_tiles.append(f)
+	_active_expansion_tile = active_tile
+	_has_active_expansion = has_active
 	_redraw_overlay()
 
 func _redraw_overlay() -> void:
@@ -144,9 +163,11 @@ func _on_outline_draw() -> void:
 
 	if show_search_overlay:
 		if not _visited_tiles.is_empty():
-			_draw_tile_fills(_visited_tiles, Color(0.20, 0.75, 0.95, 0.6), tile_size)
+			_draw_tile_fills(_visited_tiles, Color(0.20, 0.75, 0.95, 0.55), tile_size)
 		if not _frontier_tiles.is_empty():
-			_draw_tile_fills(_frontier_tiles, Color(0.95, 0.65, 0.15, 0.6), tile_size)
+			_draw_tile_fills(_frontier_tiles, Color(0.95, 0.65, 0.15, 0.55), tile_size)
+		if _has_active_expansion:
+			_draw_tile_fills([_active_expansion_tile], Color(1.0, 0.95, 0.35, 0.85), tile_size)
 
 	if not _move_outline_tiles.is_empty():
 		_draw_outer_outline(_move_outline_tiles, Color(1.0, 1.0, 1.0, 0.9), tile_size)

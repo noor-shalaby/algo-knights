@@ -13,6 +13,8 @@ extends Node2D
 @onready var seed_label: Label = %SeedLabel
 @onready var stats_label: Label = %StatsLabel
 
+const REPLAY_STEP_DELAY: float = 0.05
+
 var state: BoardState
 var minimax := MinimaxAI.new()
 var selected_unit_id: int = -1
@@ -20,6 +22,7 @@ var is_busy: bool = false
 
 var _current_seed: int = 0
 var _map_preset: String = "standard"
+var _replay_generation: int = 0
 
 var _search_mode: String = "astar"
 var _last_path_info: String = "Path: -"
@@ -30,20 +33,20 @@ func _ready() -> void:
 	algo_option.add_item("A*", 0)
 	algo_option.add_item("UCS", 1)
 	algo_option.add_item("Greedy", 2)
-	
+
 	algo_option.item_selected.connect(_on_algo_selected)
 	new_map_button.pressed.connect(_start_new_match)
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	board_view.tile_clicked.connect(_on_tile_clicked)
-	
+
 	if search_overlay_toggle != null:
 		search_overlay_toggle.button_pressed = board_view.show_search_overlay
 		search_overlay_toggle.toggled.connect(_on_search_overlay_toggled)
-	
+
 	if alpha_beta_toggle != null:
 		alpha_beta_toggle.button_pressed = minimax.use_alpha_beta
 		alpha_beta_toggle.toggled.connect(_on_alpha_beta_toggled)
-	
+
 	if depth_option != null:
 		depth_option.clear()
 		for d: int in [1, 2, 3, 4]:
@@ -52,21 +55,21 @@ func _ready() -> void:
 		if default_idx >= 0:
 			depth_option.select(default_idx)
 		depth_option.item_selected.connect(_on_depth_selected)
-	
+
 	if preset_option != null:
 		preset_option.clear()
 		preset_option.add_item("Stndrd", 0)
 		preset_option.add_item("Choke", 1)
 		preset_option.add_item("Dense", 2)
 		preset_option.item_selected.connect(_on_preset_selected)
-	
+
 	if seed_input != null:
 		seed_input.text_submitted.connect(func(_new_text: String) -> void: _start_new_match())
-	
+
 	if seed_label != null:
 		seed_label.mouse_filter = Control.MOUSE_FILTER_STOP
 		seed_label.gui_input.connect(_on_seed_label_gui_input)
-	
+
 	_start_new_match()
 
 func _resolve_seed() -> int:
@@ -89,6 +92,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_refresh_ui()
 
 func _start_new_match() -> void:
+	_replay_generation += 1
 	is_busy = false
 	selected_unit_id = -1
 	_last_path_info = "Path: -"
@@ -368,6 +372,64 @@ func _apply_path_visualization(origin: Vector2i, dest: Vector2i, unit_id: int) -
 
 	return path_res
 
+func _replay_search_expansion(path_res: Dictionary) -> void:
+	var visited: Array = path_res.get("visited", [])
+	var frontier: Array = path_res.get("frontier", [])
+	var found: bool = path_res.get("found", false)
+	var cost: int = path_res.get("cost", 0)
+	var total_expanded: int = path_res.get("nodes_expanded", visited.size())
+
+	if not board_view.show_search_overlay or visited.is_empty():
+		board_view.highlight_search_data(visited, frontier)
+		if found:
+			board_view.highlight_path(path_res.get("path", []))
+		return
+
+	_replay_generation += 1
+	var gen: int = _replay_generation
+	var revealed: Array[Vector2i] = []
+
+	for i: int in range(visited.size()):
+		if gen != _replay_generation:
+			return
+		var tile: Variant = visited[i]
+		if tile is Vector2i:
+			revealed.append(tile)
+		var show_frontier: Array = frontier if i == visited.size() - 1 else []
+		board_view.set_replay_step(revealed, show_frontier, tile if tile is Vector2i else Vector2i(-1, -1), tile is Vector2i)
+
+		if found:
+			_last_path_info = "%s c:%d step:%d/%d" % [
+				_search_mode.to_upper(),
+				cost,
+				i + 1,
+				max(1, total_expanded),
+			]
+		else:
+			_last_path_info = "%s: searching step:%d/%d" % [
+				_search_mode.to_upper(),
+				i + 1,
+				max(1, total_expanded),
+			]
+		_refresh_ui()
+		await get_tree().create_timer(REPLAY_STEP_DELAY).timeout
+
+	if gen != _replay_generation:
+		return
+
+	board_view.highlight_search_data(visited, frontier)
+	if found:
+		_last_path_info = "%s c:%d exp:%d vis:%d" % [
+			_search_mode.to_upper(),
+			cost,
+			total_expanded,
+			visited.size(),
+		]
+		board_view.highlight_path(path_res.get("path", []))
+	else:
+		_last_path_info = "%s: no path (vis:%d)" % [_search_mode.to_upper(), visited.size()]
+	_refresh_ui()
+
 func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 	is_busy = true
 	board_view.clear_highlights()
@@ -377,6 +439,7 @@ func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 	var path_res: Dictionary = _apply_path_visualization(origin, dest, unit["id"])
 
 	_refresh_ui()
+	await _replay_search_expansion(path_res)
 
 	var u_view: UnitView = board_view.get_unit_view(unit["id"])
 	if u_view != null:
@@ -433,6 +496,7 @@ func _run_ai_turn() -> void:
 	if not unit.is_empty() and unit["hp"] > 0:
 		path_res = _apply_path_visualization(unit["pos"], act["move_to"], unit["id"])
 		_refresh_ui()
+		await _replay_search_expansion(path_res)
 
 		var u_view: UnitView = board_view.get_unit_view(unit["id"])
 		if u_view != null:
