@@ -6,6 +6,8 @@ extends Node2D
 @onready var algo_option: OptionButton = %AlgoOption
 @onready var new_map_button: Button = %NewMapButton
 @onready var search_overlay_toggle: CheckButton = %SearchOverlayToggle
+@onready var alpha_beta_toggle: CheckButton = %AlphaBetaToggle
+@onready var depth_option: OptionButton = %DepthOption
 @onready var stats_label: Label = %StatsLabel
 
 var state: BoardState
@@ -31,6 +33,19 @@ func _ready() -> void:
 	if search_overlay_toggle != null:
 		search_overlay_toggle.button_pressed = board_view.show_search_overlay
 		search_overlay_toggle.toggled.connect(_on_search_overlay_toggled)
+	
+	if alpha_beta_toggle != null:
+		alpha_beta_toggle.button_pressed = minimax.use_alpha_beta
+		alpha_beta_toggle.toggled.connect(_on_alpha_beta_toggled)
+	
+	if depth_option != null:
+		depth_option.clear()
+		for d: int in [1, 2, 3, 4]:
+			depth_option.add_item("Depth %d" % d, d)
+		var default_idx: int = depth_option.get_item_index(minimax.max_depth)
+		if default_idx >= 0:
+			depth_option.select(default_idx)
+		depth_option.item_selected.connect(_on_depth_selected)
 	
 	_start_new_match()
 
@@ -188,6 +203,15 @@ func _on_search_overlay_toggled(toggled_on: bool) -> void:
 	board_view.set_search_overlay_enabled(toggled_on)
 	_refresh_ui()
 
+func _on_alpha_beta_toggled(toggled_on: bool) -> void:
+	minimax.use_alpha_beta = toggled_on
+	_refresh_ui()
+
+func _on_depth_selected(index: int) -> void:
+	if depth_option != null:
+		minimax.max_depth = depth_option.get_item_id(index)
+		_refresh_ui()
+
 func _on_end_turn_pressed() -> void:
 	if is_busy or state.current_team != 0 or GameRules.is_terminal(state):
 		return
@@ -324,7 +348,6 @@ func _run_ai_turn() -> void:
 	await get_tree().create_timer(0.25).timeout
 
 	minimax.ai_team = 1
-	minimax.max_depth = 3
 	var ai_res: Dictionary = minimax.choose_action(
 		state,
 		GameRules.get_legal_actions,
