@@ -144,9 +144,9 @@ func _on_outline_draw() -> void:
 
 	if show_search_overlay:
 		if not _visited_tiles.is_empty():
-			_draw_tile_fills(_visited_tiles, Color(0.20, 0.75, 0.95, 0.5), tile_size)
+			_draw_tile_fills(_visited_tiles, Color(0.20, 0.75, 0.95, 0.6), tile_size)
 		if not _frontier_tiles.is_empty():
-			_draw_tile_fills(_frontier_tiles, Color(0.95, 0.65, 0.15, 0.5), tile_size)
+			_draw_tile_fills(_frontier_tiles, Color(0.95, 0.65, 0.15, 0.6), tile_size)
 
 	if not _move_outline_tiles.is_empty():
 		_draw_outer_outline(_move_outline_tiles, Color(1.0, 1.0, 1.0, 0.9), tile_size)
