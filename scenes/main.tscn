@@ -353,7 +353,7 @@ text = "End Turn"
 custom_minimum_size = Vector2(78, 0)
 layout_mode = 2
 size_flags_horizontal = 8
-theme_override_constants/separation = 2
+theme_override_constants/separation = 1
 
 [node name="AlgoOption" type="OptionButton" parent="CanvasLayer/HUD/MarginContainer/TopRight" unique_id=720083385]
 unique_name_in_owner = true
@@ -400,6 +400,21 @@ popup/item_1/text = "ucs"
 popup/item_1/id = 1
 popup/item_2/text = "greedy"
 popup/item_2/id = 2
+
+[node name="SeedInput" type="LineEdit" parent="CanvasLayer/HUD/MarginContainer/TopRight" unique_id=260046908]
+unique_name_in_owner = true
+custom_minimum_size = Vector2(0, 20)
+layout_mode = 2
+
+[node name="PresetOption" type="OptionButton" parent="CanvasLayer/HUD/MarginContainer/TopRight" unique_id=1172530215]
+unique_name_in_owner = true
+layout_mode = 2
+
+[node name="SeedLabel" type="Label" parent="CanvasLayer/HUD/MarginContainer/TopRight" unique_id=921307663]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 3
+vertical_alignment = 2
 
 [node name="NewMapButton" type="Button" parent="CanvasLayer/HUD/MarginContainer/TopRight" unique_id=1502432739]
 unique_name_in_owner = true

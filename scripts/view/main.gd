@@ -8,12 +8,18 @@ extends Node2D
 @onready var search_overlay_toggle: CheckButton = %SearchOverlayToggle
 @onready var alpha_beta_toggle: CheckButton = %AlphaBetaToggle
 @onready var depth_option: OptionButton = %DepthOption
+@onready var seed_input: LineEdit = %SeedInput
+@onready var preset_option: OptionButton = %PresetOption
+@onready var seed_label: Label = %SeedLabel
 @onready var stats_label: Label = %StatsLabel
 
 var state: BoardState
 var minimax := MinimaxAI.new()
 var selected_unit_id: int = -1
 var is_busy: bool = false
+
+var _current_seed: int = 0
+var _map_preset: String = "standard"
 
 var _search_mode: String = "astar"
 var _last_path_info: String = "Path: -"
@@ -47,7 +53,31 @@ func _ready() -> void:
 			depth_option.select(default_idx)
 		depth_option.item_selected.connect(_on_depth_selected)
 	
+	if preset_option != null:
+		preset_option.clear()
+		preset_option.add_item("Stndrd", 0)
+		preset_option.add_item("Choke", 1)
+		preset_option.add_item("Dense", 2)
+		preset_option.item_selected.connect(_on_preset_selected)
+	
+	if seed_input != null:
+		seed_input.text_submitted.connect(func(_new_text: String) -> void: _start_new_match())
+	
+	if seed_label != null:
+		seed_label.mouse_filter = Control.MOUSE_FILTER_STOP
+		seed_label.gui_input.connect(_on_seed_label_gui_input)
+	
 	_start_new_match()
+
+func _resolve_seed() -> int:
+	if seed_input != null:
+		var raw: String = seed_input.text.strip_edges()
+		if raw.is_valid_int():
+			seed_input.text = ""
+			return absi(raw.to_int())
+	var rng := RandomNumberGenerator.new()
+	rng.randomize()
+	return rng.randi()
 
 func _unhandled_input(event: InputEvent) -> void:
 	# Quick toggle ('V') to show/hide visited & frontier search overlay tiles
@@ -63,14 +93,20 @@ func _start_new_match() -> void:
 	selected_unit_id = -1
 	_last_path_info = "Path: -"
 	_last_ai_info = "AI: -"
-	
-	state = CSPGenerator.generate_map(8, 8, 8, 6)
-	state.units = _create_initial_units(state)
+
+	_current_seed = _resolve_seed()
+	if seed_label != null:
+		seed_label.text = " Seed: %d" % _current_seed
+	if seed_input != null and seed_input.text.strip_edges().is_empty():
+		seed_input.placeholder_text = str(_current_seed)
+
+	state = CSPGenerator.generate_map(8, 8, 8, 6, _current_seed, _map_preset)
+	state.units = _create_initial_units(state, _current_seed)
 	state.current_team = 0
-	
+
 	if search_overlay_toggle != null:
 		search_overlay_toggle.set_pressed_no_signal(board_view.show_search_overlay)
-	
+
 	board_view.render_terrain(state)
 	_center_board()
 	board_view.rebuild_units(state)
@@ -87,9 +123,12 @@ func _center_board() -> void:
 	)
 	board_view.position = ((viewport_size - board_px_size) * 0.5).floor()
 
-func _create_initial_units(board: BoardState) -> Array:
+func _create_initial_units(board: BoardState, seed_val: int = -1) -> Array:
 	var rng := RandomNumberGenerator.new()
-	rng.randomize()
+	if seed_val >= 0:
+		rng.seed = seed_val
+	else:
+		rng.randomize()
 
 	var left_cols: Array[int] = [0, 1]
 	var right_cols: Array[int] = [max(0, board.width - 2), board.width - 1]
@@ -211,6 +250,23 @@ func _on_depth_selected(index: int) -> void:
 	if depth_option != null:
 		minimax.max_depth = depth_option.get_item_id(index)
 		_refresh_ui()
+
+func _on_preset_selected(index: int) -> void:
+	match index:
+		1:
+			_map_preset = "chokepoint"
+		2:
+			_map_preset = "dense_stress"
+		_:
+			_map_preset = "standard"
+	_start_new_match()
+
+func _on_seed_label_gui_input(event: InputEvent) -> void:
+	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
+		DisplayServer.clipboard_set(str(_current_seed))
+		if seed_label != null:
+			seed_label.text = "CP: %d" % _current_seed
+			get_tree().create_timer(1.0).timeout.connect(func() -> void: if seed_label != null: seed_label.text = "Seed: %d" % _current_seed)
 
 func _on_end_turn_pressed() -> void:
 	if is_busy or state.current_team != 0 or GameRules.is_terminal(state):
@@ -432,5 +488,5 @@ func _refresh_ui() -> void:
 	else:
 		turn_label.text = "P0 Turn" if state.current_team == 0 else "AI Turn"
 		end_turn_button.disabled = is_busy or state.current_team != 0
-	
+
 	stats_label.text = "%s \n%s" % [_last_path_info, _last_ai_info]

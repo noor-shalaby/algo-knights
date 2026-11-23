@@ -6,14 +6,18 @@ extends RefCounted
 @export var min_wall_count: int = 2
 @export var max_wall_count: int = 6
 
+const MAX_BACKTRACK_STEPS: int = 2500
+
 ## Generates a constrained tactical map using backtracking search with
 ## forward-checking / connectivity & spawn-clearance constraints.
+## Supports presets: "standard", "chokepoint", "dense_stress".
 static func generate_map(
 	width: int = 8,
 	height: int = 8,
 	wall_count: int = 8,
 	forest_count: int = 6,
 	seed_val: int = -1,
+	preset: String = "standard",
 	min_walls: int = -1,
 	max_walls: int = -1,
 	min_forests: int = -1,
@@ -25,13 +29,27 @@ static func generate_map(
 	else:
 		rng.randomize()
 
-	var wall_low: int = min_walls if min_walls >= 0 else maxi(0, wall_count - 3)
-	var wall_high: int = max_walls if max_walls >= 0 else wall_count + 2
+	var normalized_preset: String = preset.strip_edges().to_lower()
+	var effective_walls: int = wall_count
+	var effective_forests: int = forest_count
+
+	match normalized_preset:
+		"chokepoint":
+			effective_walls = maxi(wall_count, 10)
+			effective_forests = mini(forest_count, 5)
+		"dense_stress":
+			effective_walls = maxi(wall_count + 4, 12)
+			effective_forests = maxi(forest_count + 4, 10)
+		_:
+			normalized_preset = "standard"
+
+	var wall_low: int = min_walls if min_walls >= 0 else maxi(0, effective_walls - 3)
+	var wall_high: int = max_walls if max_walls >= 0 else effective_walls + 2
 	wall_low = maxi(0, wall_low)
 	wall_high = maxi(wall_low, wall_high)
 
-	var forest_low: int = min_forests if min_forests >= 0 else maxi(0, forest_count - 2)
-	var forest_high: int = max_forests if max_forests >= 0 else forest_count + 3
+	var forest_low: int = min_forests if min_forests >= 0 else maxi(0, effective_forests - 2)
+	var forest_high: int = max_forests if max_forests >= 0 else effective_forests + 3
 	forest_low = maxi(0, forest_low)
 	forest_high = maxi(forest_low, forest_high)
 
@@ -46,35 +64,47 @@ static func generate_map(
 		if target_walls > max_allowed_special:
 			target_walls = max_allowed_special
 
+	var board := BoardState.new(width, height, BoardState.TERRAIN_PLAIN)
+	var reserved_tiles: Dictionary = protected_tiles.duplicate()
+	var remaining_walls: int = target_walls
+
+	if normalized_preset == "chokepoint":
+		remaining_walls = _apply_chokepoint_walls(board, target_walls, protected_tiles, reserved_tiles)
+
 	var candidates: Array[Vector2i] = []
 	for y: int in range(height):
 		for x: int in range(width):
 			var pos := Vector2i(x, y)
-			if not protected_tiles.has(pos):
+			if not reserved_tiles.has(pos):
 				candidates.append(pos)
 
-	# Shuffle candidates once per attempt
+	# Fisher-Yates shuffle using deterministic RNG
 	for i: int in range(candidates.size() - 1, 0, -1):
 		var j: int = rng.randi_range(0, i)
 		var tmp: Vector2i = candidates[i]
 		candidates[i] = candidates[j]
 		candidates[j] = tmp
 
-	var board := BoardState.new(width, height, BoardState.TERRAIN_PLAIN)
+	var step_counter: Array[int] = [0]
 	var solved: bool = _backtrack(
 		board,
 		candidates,
 		0,
-		target_walls,
+		remaining_walls,
 		target_forests,
 		protected_tiles,
-		rng
+		rng,
+		step_counter
 	)
 
 	if not solved:
-		# Fallback to a guaranteed open/connected layout if constraints are too tight
 		var fallback := BoardState.new(width, height, BoardState.TERRAIN_PLAIN)
-		_place_safe_obstacles(fallback, candidates, target_walls, target_forests, protected_tiles)
+		if normalized_preset == "chokepoint":
+			var fb_reserved: Dictionary = protected_tiles.duplicate()
+			var fb_rem_walls: int = _apply_chokepoint_walls(fallback, target_walls, protected_tiles, fb_reserved)
+			_place_safe_obstacles(fallback, candidates, fb_rem_walls, target_forests, protected_tiles)
+		else:
+			_place_safe_obstacles(fallback, candidates, target_walls, target_forests, protected_tiles)
 		return fallback
 
 	return board
@@ -82,6 +112,43 @@ static func generate_map(
 
 static func candidates_capacity(width: int, height: int, protected_tiles: Dictionary) -> int:
 	return maxi(0, (width * height) - protected_tiles.size())
+
+static func _apply_chokepoint_walls(
+	board: BoardState,
+	target_walls: int,
+	spawn_protected: Dictionary,
+	reserved_tiles: Dictionary
+) -> int:
+	# Carve central vertical choke barrier(s) with a 1-tile gap while checking spawn connectivity
+	var mid_x: int = int(board.width / 2.0)
+	if mid_x <= 0 or mid_x >= board.width - 1:
+		return target_walls
+
+	var cols: Array[int] = [mid_x]
+	if mid_x - 1 > 0:
+		cols.append(mid_x - 1)
+
+	var gap_y: int = int(board.height / 2.0)
+	var placed: int = 0
+
+	for col: int in cols:
+		for y: int in range(board.height):
+			if placed >= target_walls:
+				break
+			if y == gap_y:
+				continue
+			var pos := Vector2i(col, y)
+			if reserved_tiles.has(pos):
+				continue
+			if board.get_terrain(pos) != BoardState.TERRAIN_WALL:
+				board.set_terrain(pos, BoardState.TERRAIN_WALL)
+				if _spawns_connected(board, spawn_protected):
+					reserved_tiles[pos] = true
+					placed += 1
+				else:
+					board.set_terrain(pos, BoardState.TERRAIN_PLAIN)
+
+	return maxi(0, target_walls - placed)
 
 static func _get_protected_spawns(width: int, height: int) -> Dictionary:
 	var left_x: int = 0
@@ -100,7 +167,6 @@ static func _get_protected_spawns(width: int, height: int) -> Dictionary:
 	var protected: Dictionary = {}
 	for s: Vector2i in spawns:
 		protected[s] = true
-		# Keep immediate 4-way neighbors clear so units aren't trapped on spawn
 		for d: Vector2i in [Vector2i(1, 0), Vector2i(-1, 0), Vector2i(0, 1), Vector2i(0, -1)]:
 			var n: Vector2i = s + d
 			if n.x >= 0 and n.x < width and n.y >= 0 and n.y < height:
@@ -115,8 +181,13 @@ static func _backtrack(
 	walls_left: int,
 	forests_left: int,
 	protected: Dictionary,
-	rng: RandomNumberGenerator
+	rng: RandomNumberGenerator,
+	step_counter: Array[int]
 ) -> bool:
+	step_counter[0] += 1
+	if step_counter[0] > MAX_BACKTRACK_STEPS:
+		return false
+
 	if walls_left == 0 and forests_left == 0:
 		return _is_valid_board(board, protected)
 
@@ -128,7 +199,6 @@ static func _backtrack(
 	if walls_left + forests_left > remaining_slots:
 		return false
 
-	# Ordered domain choices (randomized slightly per node for variety)
 	var choices: Array[int] = [BoardState.TERRAIN_PLAIN]
 	if walls_left > 0:
 		choices.append(BoardState.TERRAIN_WALL)
@@ -143,9 +213,8 @@ static func _backtrack(
 		var next_walls: int = walls_left - (1 if t == BoardState.TERRAIN_WALL else 0)
 		var next_forests: int = forests_left - (1 if t == BoardState.TERRAIN_FOREST else 0)
 
-		# Prune early if walls block connectivity among protected spawn tiles
 		if t != BoardState.TERRAIN_WALL or _spawns_connected(board, protected):
-			if _backtrack(board, candidates, idx + 1, next_walls, next_forests, protected, rng):
+			if _backtrack(board, candidates, idx + 1, next_walls, next_forests, protected, rng, step_counter):
 				return true
 
 		board.set_terrain(pos, BoardState.TERRAIN_PLAIN)
@@ -156,7 +225,6 @@ static func _is_valid_board(board: BoardState, protected: Dictionary) -> bool:
 	if not _spawns_connected(board, protected):
 		return false
 
-	# Avoid 2x2 solid wall clumps that look awkward on small grids
 	for y: int in range(board.height - 1):
 		for x: int in range(board.width - 1):
 			if (
