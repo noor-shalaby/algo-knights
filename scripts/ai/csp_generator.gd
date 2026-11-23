@@ -1,6 +1,11 @@
 class_name CSPGenerator
 extends RefCounted
 
+@export var min_forest_count: int = 3
+@export var max_forest_count: int = 8
+@export var min_wall_count: int = 2
+@export var max_wall_count: int = 6
+
 ## Generates a constrained tactical map using backtracking search with
 ## forward-checking / connectivity & spawn-clearance constraints.
 static func generate_map(
@@ -8,7 +13,11 @@ static func generate_map(
 	height: int = 8,
 	wall_count: int = 8,
 	forest_count: int = 6,
-	seed_val: int = -1
+	seed_val: int = -1,
+	min_walls: int = -1,
+	max_walls: int = -1,
+	min_forests: int = -1,
+	max_forests: int = -1
 ) -> BoardState:
 	var rng := RandomNumberGenerator.new()
 	if seed_val >= 0:
@@ -16,7 +25,27 @@ static func generate_map(
 	else:
 		rng.randomize()
 
+	var wall_low: int = min_walls if min_walls >= 0 else maxi(0, wall_count - 3)
+	var wall_high: int = max_walls if max_walls >= 0 else wall_count + 2
+	wall_low = maxi(0, wall_low)
+	wall_high = maxi(wall_low, wall_high)
+
+	var forest_low: int = min_forests if min_forests >= 0 else maxi(0, forest_count - 2)
+	var forest_high: int = max_forests if max_forests >= 0 else forest_count + 3
+	forest_low = maxi(0, forest_low)
+	forest_high = maxi(forest_low, forest_high)
+
 	var protected_tiles: Dictionary = _get_protected_spawns(width, height)
+	var max_allowed_special: int = maxi(0, candidates_capacity(width, height, protected_tiles) - 4)
+
+	var target_walls: int = rng.randi_range(wall_low, wall_high)
+	var target_forests: int = rng.randi_range(forest_low, forest_high)
+
+	if target_walls + target_forests > max_allowed_special:
+		target_forests = maxi(0, max_allowed_special - target_walls)
+		if target_walls > max_allowed_special:
+			target_walls = max_allowed_special
+
 	var candidates: Array[Vector2i] = []
 	for y: int in range(height):
 		for x: int in range(width):
@@ -36,8 +65,8 @@ static func generate_map(
 		board,
 		candidates,
 		0,
-		wall_count,
-		forest_count,
+		target_walls,
+		target_forests,
 		protected_tiles,
 		rng
 	)
@@ -45,10 +74,14 @@ static func generate_map(
 	if not solved:
 		# Fallback to a guaranteed open/connected layout if constraints are too tight
 		var fallback := BoardState.new(width, height, BoardState.TERRAIN_PLAIN)
-		_place_safe_obstacles(fallback, candidates, wall_count, forest_count, protected_tiles)
+		_place_safe_obstacles(fallback, candidates, target_walls, target_forests, protected_tiles)
 		return fallback
 
 	return board
+
+
+static func candidates_capacity(width: int, height: int, protected_tiles: Dictionary) -> int:
+	return maxi(0, (width * height) - protected_tiles.size())
 
 static func _get_protected_spawns(width: int, height: int) -> Dictionary:
 	var left_x: int = 0
