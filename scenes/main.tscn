@@ -50,7 +50,7 @@ theme_override_constants/separation = 2
 
 [node name="TurnLabel" type="Label" parent="CanvasLayer/HUD/MarginContainer/TopLeft" unique_id=1138580287]
 unique_name_in_owner = true
-custom_minimum_size = Vector2(31, 0)
+custom_minimum_size = Vector2(32, 0)
 layout_mode = 2
 size_flags_horizontal = 0
 theme_override_font_sizes/font_size = 8
