@@ -5,6 +5,24 @@ signal tile_clicked(grid_pos: Vector2i)
 
 const UNIT_VIEW_SCENE: PackedScene = preload("res://scenes/unit_view.tscn")
 
+const PLAIN_TILES: Array[Vector2i] = [
+	Vector2i(1, 2),
+	Vector2i(2, 2),
+	Vector2i(3, 2)
+]
+const FOREST_TILES: Array[Vector2i] = [
+	Vector2i(1, 0),
+	Vector2i(2, 0),
+	Vector2i(3, 0)
+]
+const WALL_TILES: Array[Vector2i] = [
+	Vector2i(10, 6),
+	Vector2i(11, 6),
+	Vector2i(12, 6),
+	Vector2i(13, 6),
+	Vector2i(14, 6)
+]
+
 @onready var terrain_layer: TileMapLayer = $TerrainLayer
 @onready var wall_layer: TileMapLayer = $WallLayer
 @onready var units_container: Node2D = $UnitsContainer
@@ -35,12 +53,12 @@ func render_terrain(state: BoardState) -> void:
 			var t_type: int = state.get_terrain(pos)
 			match t_type:
 				BoardState.TERRAIN_PLAIN:
-					terrain_layer.set_cell(pos, 0, Vector2i(3, 2))
+					terrain_layer.set_cell(pos, 0, PLAIN_TILES.pick_random())
 				BoardState.TERRAIN_FOREST:
-					terrain_layer.set_cell(pos, 0, Vector2i(3, 0))
+					terrain_layer.set_cell(pos, 0, FOREST_TILES.pick_random())
 				BoardState.TERRAIN_WALL:
-					terrain_layer.set_cell(pos, 0, Vector2i(3, 2))
-					wall_layer.set_cell(pos, 0, Vector2i(10, 6))
+					terrain_layer.set_cell(pos, 0, PLAIN_TILES.pick_random())
+					wall_layer.set_cell(pos, 0, WALL_TILES.pick_random())
 
 func rebuild_units(state: BoardState) -> void:
 	for child: Node in units_container.get_children():
