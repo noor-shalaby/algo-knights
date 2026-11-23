@@ -34,6 +34,9 @@ var _unit_views: Dictionary = {} # unit_id (int) -> UnitView
 var _move_outline_tiles: Array[Vector2i] = []
 var _attack_outline_tiles: Array[Vector2i] = []
 var _path_tiles: Array[Vector2i] = []
+var _visited_tiles: Array[Vector2i] = []
+var _frontier_tiles: Array[Vector2i] = []
+var show_search_overlay: bool = true
 
 func _ready() -> void:
 	if outline_overlay != null and not outline_overlay.draw.is_connected(_on_outline_draw):
@@ -94,6 +97,15 @@ func clear_highlights() -> void:
 	_path_tiles.clear()
 	_redraw_overlay()
 
+func clear_search_overlay() -> void:
+	_visited_tiles.clear()
+	_frontier_tiles.clear()
+	_redraw_overlay()
+
+func set_search_overlay_enabled(enabled: bool) -> void:
+	show_search_overlay = enabled
+	_redraw_overlay()
+
 func highlight_moves(tiles: Array[Vector2i]) -> void:
 	clear_highlights()
 	_move_outline_tiles = tiles.duplicate()
@@ -110,6 +122,17 @@ func highlight_path(path: Array) -> void:
 			_path_tiles.append(p)
 	_redraw_overlay()
 
+func highlight_search_data(visited: Array, frontier: Array = []) -> void:
+	_visited_tiles.clear()
+	_frontier_tiles.clear()
+	for v in visited:
+		if v is Vector2i:
+			_visited_tiles.append(v)
+	for f in frontier:
+		if f is Vector2i:
+			_frontier_tiles.append(f)
+	_redraw_overlay()
+
 func _redraw_overlay() -> void:
 	if outline_overlay != null:
 		outline_overlay.queue_redraw()
@@ -119,6 +142,12 @@ func _on_outline_draw() -> void:
 	if terrain_layer != null and terrain_layer.tile_set != null:
 		tile_size = float(terrain_layer.tile_set.tile_size.x)
 
+	if show_search_overlay:
+		if not _visited_tiles.is_empty():
+			_draw_tile_fills(_visited_tiles, Color(0.20, 0.75, 0.95, 0.5), tile_size)
+		if not _frontier_tiles.is_empty():
+			_draw_tile_fills(_frontier_tiles, Color(0.95, 0.65, 0.15, 0.5), tile_size)
+
 	if not _move_outline_tiles.is_empty():
 		_draw_outer_outline(_move_outline_tiles, Color(1.0, 1.0, 1.0, 0.9), tile_size)
 
@@ -126,7 +155,12 @@ func _on_outline_draw() -> void:
 		_draw_outer_outline(_attack_outline_tiles, Color(0.95, 0.25, 0.25, 0.95), tile_size)
 
 	if not _path_tiles.is_empty():
-		_draw_path_markers(_path_tiles, Color(0.95, 0.95, 0.25, 0.851), tile_size)
+		_draw_path_markers(_path_tiles, Color(0.95, 0.95, 0.25, 0.85), tile_size)
+
+func _draw_tile_fills(tiles: Array[Vector2i], color: Color, tile_size: float = 16.0) -> void:
+	for t: Vector2i in tiles:
+		var top_left: Vector2 = _tile_top_left(t, tile_size)
+		outline_overlay.draw_rect(Rect2(top_left, Vector2(tile_size, tile_size)), color)
 
 func _draw_outer_outline(tiles: Array[Vector2i], color: Color, tile_size: float = 16.0) -> void:
 	var tile_set_map: Dictionary = {}

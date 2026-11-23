@@ -5,6 +5,8 @@ var ai_team: int = 1
 var max_depth: int = 3
 var use_alpha_beta: bool = true
 var nodes_evaluated: int = 0
+var pruned_branches: int = 0
+var leaf_evaluations: int = 0
 
 func choose_action(
 	state: BoardState,
@@ -14,12 +16,22 @@ func choose_action(
 	terminal_fn: Callable
 ) -> Dictionary:
 	nodes_evaluated = 0
+	pruned_branches = 0
+	leaf_evaluations = 0
+
 	var best_score: float = -INF
 	var best_action: Dictionary = {}
 
 	var actions: Array = legal_actions_fn.call(state, ai_team)
 	if actions.is_empty():
-		return {"action": {}, "score": _call_eval(eval_fn, state), "nodes": nodes_evaluated}
+		leaf_evaluations += 1
+		return {
+			"action": {},
+			"score": _call_eval(eval_fn, state),
+			"nodes": nodes_evaluated,
+			"pruned": pruned_branches,
+			"leaves": leaf_evaluations,
+		}
 
 	_order_actions(actions)
 
@@ -50,6 +62,8 @@ func choose_action(
 		"action": best_action,
 		"score": best_score,
 		"nodes": nodes_evaluated,
+		"pruned": pruned_branches,
+		"leaves": leaf_evaluations,
 	}
 
 func _minimax(
@@ -66,18 +80,22 @@ func _minimax(
 	nodes_evaluated += 1
 
 	if depth <= 0 or terminal_fn.call(state):
+		leaf_evaluations += 1
 		return _call_eval(eval_fn, state)
 
 	var acting_team: int = ai_team if maximizing else (1 - ai_team)
 	var actions: Array = legal_actions_fn.call(state, acting_team)
 	if actions.is_empty():
+		leaf_evaluations += 1
 		return _call_eval(eval_fn, state)
 
 	_order_actions(actions)
+	var total_actions: int = actions.size()
 
 	if maximizing:
 		var value: float = -INF
-		for act: Dictionary in actions:
+		for i: int in range(total_actions):
+			var act: Dictionary = actions[i]
 			var next_state: BoardState = state.clone()
 			apply_fn.call(next_state, act)
 			var child_val: float = _minimax(
@@ -95,11 +113,13 @@ func _minimax(
 			if use_alpha_beta:
 				alpha = max(alpha, value)
 				if alpha >= beta:
+					pruned_branches += maxi(0, total_actions - 1 - i)
 					break
 		return value
 	else:
 		var value: float = INF
-		for act: Dictionary in actions:
+		for i: int in range(total_actions):
+			var act: Dictionary = actions[i]
 			var next_state: BoardState = state.clone()
 			apply_fn.call(next_state, act)
 			var child_val: float = _minimax(
@@ -117,6 +137,7 @@ func _minimax(
 			if use_alpha_beta:
 				beta = min(beta, value)
 				if beta <= alpha:
+					pruned_branches += maxi(0, total_actions - 1 - i)
 					break
 		return value
 

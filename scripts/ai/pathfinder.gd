@@ -29,7 +29,7 @@ static func get_reachable_tiles(
 	var frontier: Array = [[0, origin]]
 
 	while not frontier.is_empty():
-		frontier.sort_custom(func(a, b): return a[0] < b[0])
+		frontier.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 		var current: Array = frontier.pop_front()
 		var cur_cost: int = current[0]
 		var cur_pos: Vector2i = current[1]
@@ -58,7 +58,14 @@ static func get_reachable_tiles(
 	return cost_so_far
 
 ## Finds a path from start to goal using "astar", "ucs", or "greedy".
-## Returns { "found": bool, "path": Array[Vector2i], "cost": int, "nodes_expanded": int }.
+## Returns {
+##   "found": bool,
+##   "path": Array[Vector2i],
+##   "cost": int,
+##   "nodes_expanded": int,
+##   "visited": Array[Vector2i],
+##   "frontier": Array[Vector2i],
+## }.
 static func find_path(
 	state: BoardState,
 	start: Vector2i,
@@ -66,31 +73,60 @@ static func find_path(
 	mode: String = "astar",
 	moving_unit_id: int = -1
 ) -> Dictionary:
+	var empty_visited: Array[Vector2i] = []
+	var empty_frontier: Array[Vector2i] = []
+	var empty_path: Array[Vector2i] = []
+
 	if not _in_bounds(state, start) or not _in_bounds(state, goal):
-		return {"found": false, "path": [], "cost": -1, "nodes_expanded": 0}
+		return {
+			"found": false,
+			"path": empty_path,
+			"cost": -1,
+			"nodes_expanded": 0,
+			"visited": empty_visited,
+			"frontier": empty_frontier,
+		}
 
 	if state.get_terrain_cost(goal) < 0:
-		return {"found": false, "path": [], "cost": -1, "nodes_expanded": 0}
+		return {
+			"found": false,
+			"path": empty_path,
+			"cost": -1,
+			"nodes_expanded": 0,
+			"visited": empty_visited,
+			"frontier": empty_frontier,
+		}
 
 	if start == goal:
-		return {"found": true, "path": [start], "cost": 0, "nodes_expanded": 0}
+		var self_path: Array[Vector2i] = [start]
+		var self_visited: Array[Vector2i] = [start]
+		return {
+			"found": true,
+			"path": self_path,
+			"cost": 0,
+			"nodes_expanded": 0,
+			"visited": self_visited,
+			"frontier": empty_frontier,
+		}
 
 	var open_list: Array = [] # [f_score, g_score, pos]
 	var came_from: Dictionary = {}
 	var g_score: Dictionary = {start: 0}
 	var closed: Dictionary = {}
+	var visited_order: Array[Vector2i] = []
 	var nodes_expanded: int = 0
 
 	open_list.append([_heuristic(start, goal, mode), 0, start])
 
 	while not open_list.is_empty():
-		open_list.sort_custom(func(a, b): return a[0] < b[0])
+		open_list.sort_custom(func(a: Array, b: Array) -> bool: return a[0] < b[0])
 		var entry: Array = open_list.pop_front()
 		var current: Vector2i = entry[2]
 
 		if closed.has(current):
 			continue
 		closed[current] = true
+		visited_order.append(current)
 		nodes_expanded += 1
 
 		if current == goal:
@@ -106,6 +142,8 @@ static func find_path(
 				"path": path,
 				"cost": g_score[goal],
 				"nodes_expanded": nodes_expanded,
+				"visited": visited_order,
+				"frontier": _collect_frontier_positions(open_list, closed),
 			}
 
 		for dir: Vector2i in DIRS:
@@ -128,7 +166,24 @@ static func find_path(
 				var f_score: float = _priority(tentative_g, neighbor, goal, mode)
 				open_list.append([f_score, tentative_g, neighbor])
 
-	return {"found": false, "path": [], "cost": -1, "nodes_expanded": nodes_expanded}
+	return {
+		"found": false,
+		"path": empty_path,
+		"cost": -1,
+		"nodes_expanded": nodes_expanded,
+		"visited": visited_order,
+		"frontier": empty_frontier,
+	}
+
+static func _collect_frontier_positions(open_list: Array, closed: Dictionary) -> Array[Vector2i]:
+	var result: Array[Vector2i] = []
+	var seen: Dictionary = {}
+	for entry: Array in open_list:
+		var pos: Vector2i = entry[2]
+		if not closed.has(pos) and not seen.has(pos):
+			seen[pos] = true
+			result.append(pos)
+	return result
 
 static func _heuristic(a: Vector2i, b: Vector2i, mode: String) -> float:
 	if mode == "ucs":

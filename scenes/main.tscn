@@ -373,8 +373,18 @@ popup/item_2/id = 2
 [node name="NewMapButton" type="Button" parent="CanvasLayer/HUD/MarginContainer/TopRight" unique_id=1502432739]
 unique_name_in_owner = true
 layout_mode = 2
+size_flags_vertical = 0
 theme_override_font_sizes/font_size = 8
 text = "New CSP Map"
+
+[node name="SearchOverlayToggle" type="CheckButton" parent="CanvasLayer/HUD/MarginContainer/TopRight" unique_id=1600194075]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/h_separation = 0
+button_pressed = true
+text = "Search
+Overlay"
 
 [node name="DebugPanel" type="PanelContainer" parent="CanvasLayer/HUD" unique_id=1660389984]
 custom_minimum_size = Vector2(84, 0)

@@ -2,9 +2,10 @@ extends Node2D
 
 @onready var board_view: BoardView = $BoardView
 @onready var turn_label: Label = %TurnLabel
+@onready var end_turn_button: Button = %EndTurnButton
 @onready var algo_option: OptionButton = %AlgoOption
 @onready var new_map_button: Button = %NewMapButton
-@onready var end_turn_button: Button = %EndTurnButton
+@onready var search_overlay_toggle: CheckButton = %SearchOverlayToggle
 @onready var stats_label: Label = %StatsLabel
 
 var state: BoardState
@@ -21,24 +22,40 @@ func _ready() -> void:
 	algo_option.add_item("A*", 0)
 	algo_option.add_item("UCS", 1)
 	algo_option.add_item("Greedy", 2)
-
+	
 	algo_option.item_selected.connect(_on_algo_selected)
 	new_map_button.pressed.connect(_start_new_match)
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	board_view.tile_clicked.connect(_on_tile_clicked)
-
+	
+	if search_overlay_toggle != null:
+		search_overlay_toggle.button_pressed = board_view.show_search_overlay
+		search_overlay_toggle.toggled.connect(_on_search_overlay_toggled)
+	
 	_start_new_match()
+
+func _unhandled_input(event: InputEvent) -> void:
+	# Quick toggle ('V') to show/hide visited & frontier search overlay tiles
+	if event is InputEventKey and event.pressed and not event.echo and event.keycode == KEY_V:
+		var next_state: bool = not board_view.show_search_overlay
+		board_view.set_search_overlay_enabled(next_state)
+		if search_overlay_toggle != null:
+			search_overlay_toggle.set_pressed_no_signal(next_state)
+		_refresh_ui()
 
 func _start_new_match() -> void:
 	is_busy = false
 	selected_unit_id = -1
 	_last_path_info = "Path: -"
 	_last_ai_info = "AI: -"
-
+	
 	state = CSPGenerator.generate_map(8, 8, 8, 6)
 	state.units = _create_initial_units(state)
 	state.current_team = 0
-
+	
+	if search_overlay_toggle != null:
+		search_overlay_toggle.set_pressed_no_signal(board_view.show_search_overlay)
+	
 	board_view.render_terrain(state)
 	_center_board()
 	board_view.rebuild_units(state)
@@ -166,6 +183,10 @@ func _on_algo_selected(index: int) -> void:
 			_search_mode = "greedy"
 	_refresh_ui()
 
+func _on_search_overlay_toggled(toggled_on: bool) -> void:
+	board_view.set_search_overlay_enabled(toggled_on)
+	_refresh_ui()
+
 func _on_end_turn_pressed() -> void:
 	if is_busy or state.current_team != 0 or GameRules.is_terminal(state):
 		return
@@ -246,25 +267,39 @@ func _show_unit_options(unit: Dictionary) -> void:
 	board_view.highlight_moves(moves)
 	board_view.highlight_attacks(attacks)
 
+func _apply_path_visualization(origin: Vector2i, dest: Vector2i, unit_id: int) -> Dictionary:
+	var path_res: Dictionary = Pathfinder.find_path(state, origin, dest, _search_mode, unit_id)
+	var visited: Array = path_res.get("visited", [])
+	var frontier: Array = path_res.get("frontier", [])
+
+	if path_res.get("found", false):
+		_last_path_info = "%s c:%d exp:%d vis:%d" % [
+			_search_mode.to_upper(),
+			path_res.get("cost", 0),
+			path_res.get("nodes_expanded", 0),
+			visited.size(),
+		]
+		board_view.highlight_search_data(visited, frontier)
+		board_view.highlight_path(path_res.get("path", []))
+	else:
+		_last_path_info = "%s: no path (vis:%d)" % [_search_mode.to_upper(), visited.size()]
+		board_view.highlight_search_data(visited, frontier)
+
+	return path_res
+
 func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 	is_busy = true
 	board_view.clear_highlights()
 
 	var origin: Vector2i = unit["pos"]
 	var dest: Vector2i = act["move_to"]
-	var path_res: Dictionary = Pathfinder.find_path(state, origin, dest, _search_mode, unit["id"])
-
-	if path_res["found"]:
-		_last_path_info = "%s c:%d n:%d" % [_search_mode.to_upper(), path_res["cost"], path_res["nodes_expanded"]]
-		board_view.highlight_path(path_res["path"])
-	else:
-		_last_path_info = "%s: no path" % _search_mode.to_upper()
+	var path_res: Dictionary = _apply_path_visualization(origin, dest, unit["id"])
 
 	_refresh_ui()
 
 	var u_view: UnitView = board_view.get_unit_view(unit["id"])
 	if u_view != null:
-		if path_res["found"] and path_res["path"].size() > 1:
+		if path_res.get("found", false) and path_res["path"].size() > 1:
 			await u_view.move_along_path(path_res["path"], board_view.terrain_layer)
 		if act.has("target_id"):
 			await u_view.play_attack()
@@ -298,7 +333,14 @@ func _run_ai_turn() -> void:
 	)
 
 	var act: Dictionary = ai_res.get("action", {})
-	_last_ai_info = "MM s:%.1f n:%d" % [ai_res.get("score", 0.0), ai_res.get("nodes", 0)]
+	var ab_tag: String = "AB" if minimax.use_alpha_beta else "NO-AB"
+	_last_ai_info = "MM[%s] s:%.1f n:%d p:%d l:%d" % [
+		ab_tag,
+		ai_res.get("score", 0.0),
+		ai_res.get("nodes", 0),
+		ai_res.get("pruned", 0),
+		ai_res.get("leaves", 0),
+	]
 
 	if act.is_empty():
 		state.current_team = 0
@@ -307,17 +349,14 @@ func _run_ai_turn() -> void:
 		return
 
 	var unit: Dictionary = _get_unit_by_id(act["unit_id"])
+	var path_res: Dictionary = {}
 	if not unit.is_empty() and unit["hp"] > 0:
-		var path_res: Dictionary = Pathfinder.find_path(state, unit["pos"], act["move_to"], _search_mode, unit["id"])
-		if path_res["found"]:
-			_last_path_info = "%s c:%d n:%d" % [_search_mode.to_upper(), path_res["cost"], path_res["nodes_expanded"]]
-			board_view.highlight_path(path_res["path"])
-
+		path_res = _apply_path_visualization(unit["pos"], act["move_to"], unit["id"])
 		_refresh_ui()
 
 		var u_view: UnitView = board_view.get_unit_view(unit["id"])
 		if u_view != null:
-			if path_res["found"] and path_res["path"].size() > 1:
+			if path_res.get("found", false) and path_res["path"].size() > 1:
 				await u_view.move_along_path(path_res["path"], board_view.terrain_layer)
 			if act.has("target_id"):
 				await u_view.play_attack()
@@ -369,5 +408,5 @@ func _refresh_ui() -> void:
 	else:
 		turn_label.text = "P0 Turn" if state.current_team == 0 else "AI Turn"
 		end_turn_button.disabled = is_busy or state.current_team != 0
-
-	stats_label.text = "%s\n%s" % [_last_path_info, _last_ai_info]
+	
+	stats_label.text = "%s \n%s" % [_last_path_info, _last_ai_info]
