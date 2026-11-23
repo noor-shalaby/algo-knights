@@ -1,14 +1,13 @@
 shader_type canvas_item;
 
-uniform vec2 pixel_size = vec2(16.0, 16.0); // Match your tile size (e.g., 16x16)
+
 uniform float wave_speed : hint_range(0.0, 10.0) = 1.0;
 uniform float wave_frequency : hint_range(1.0, 40.0) = 1.0;
 uniform float pixel_displacement : hint_range(0.0, 4.0) = 1.0;
 
+
 void fragment() {
-	// Snap UV to the underlying pixel grid before offsetting
-	vec2 snapped_uv = (floor(UV * TEXTURE_PIXEL_SIZE * 0.0 + UV / max(TEXTURE_PIXEL_SIZE, vec2(0.0001))));
-	// Cleaner pixel snapping in screen/texture texel space:
+	// Clean pixel snapping in screen/texture texel space:
 	vec2 tex_size = 1.0 / max(TEXTURE_PIXEL_SIZE, vec2(0.0001));
 	vec2 texel = floor(UV * tex_size);
 

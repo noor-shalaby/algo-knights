@@ -8,7 +8,6 @@
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_jyhfs"]
 shader = ExtResource("2_tbgi4")
-shader_parameter/pixel_size = Vector2(16, 16)
 shader_parameter/wave_speed = 1.0000000475
 shader_parameter/wave_frequency = 1.0
 shader_parameter/pixel_displacement = 1.0
