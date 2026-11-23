@@ -60,6 +60,7 @@ func _start_new_match() -> void:
 	_center_board()
 	board_view.rebuild_units(state)
 	board_view.clear_highlights()
+	board_view.clear_search_overlay()
 	_refresh_ui()
 
 func _center_board() -> void:
