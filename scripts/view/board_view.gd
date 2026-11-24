@@ -4,6 +4,7 @@ extends Node2D
 signal tile_clicked(grid_pos: Vector2i)
 
 const UNIT_VIEW_SCENE: PackedScene = preload("res://scenes/unit_view.tscn")
+const DAMAGE_LABEL_SCENE: PackedScene = preload("res://scenes/damage_label.tscn")
 
 const PLAIN_TILES: Array[Vector2i] = [
 	Vector2i(1, 2),
@@ -155,6 +156,16 @@ func set_replay_step(visited_so_far: Array, frontier: Array = [], active_tile: V
 func _redraw_overlay() -> void:
 	if outline_overlay != null:
 		outline_overlay.queue_redraw()
+
+func spawn_damage_label(grid_pos: Vector2i, amount: int, color: Color = Color(1.0, 0.25, 0.25, 1.0)) -> void:
+	if amount <= 0 or units_container == null:
+		return
+
+	var popup: DamageLabel = DAMAGE_LABEL_SCENE.instantiate()
+	var center_pos: Vector2 = terrain_layer.map_to_local(grid_pos)
+	popup.position = center_pos + Vector2(0.0, -14.0)
+	units_container.add_child(popup)
+	popup.play(amount, color)
 
 func _on_outline_draw() -> void:
 	var tile_size: float = 16.0

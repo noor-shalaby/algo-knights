@@ -286,7 +286,6 @@ default_font_size = 8
 [node name="Main" type="Node2D" unique_id=861547988]
 script = ExtResource("1_0wfyh")
 metadata/_edit_vertical_guides_ = [80.0, 224.0, 96.0, 240.0, 144.0]
-metadata/_edit_horizontal_guides_ = [-84.0, -62.0]
 
 [node name="BackgroundWater" type="TileMapLayer" parent="." unique_id=869784721]
 material = SubResource("ShaderMaterial_jyhfs")

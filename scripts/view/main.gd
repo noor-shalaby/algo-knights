@@ -513,14 +513,24 @@ func _run_ai_turn() -> void:
 
 func _resolve_action_and_sync(act: Dictionary) -> void:
 	var target_id: int = act.get("target_id", -1)
+	var prev_hp: int = 0
+	if target_id != -1:
+		var before_target: Dictionary = _get_unit_by_id(target_id)
+		if not before_target.is_empty():
+			prev_hp = int(before_target.get("hp", 0))
+
 	GameRules.apply_action(state, act)
 
 	if target_id != -1:
 		var target_data: Dictionary = _get_unit_by_id(target_id)
 		var target_view: UnitView = board_view.get_unit_view(target_id)
 		if not target_data.is_empty() and target_view != null:
-			target_view.hp_bar.value = max(0, target_data["hp"])
-			if target_data["hp"] > 0:
+			var new_hp: int = int(target_data["hp"])
+			var dmg_dealt: int = maxi(0, prev_hp - new_hp)
+			target_view.hp_bar.value = maxi(0, new_hp)
+			if dmg_dealt > 0:
+				board_view.spawn_damage_label(target_data["pos"], dmg_dealt)
+			if new_hp > 0:
 				await target_view.play_hit_impact(1.5, 0.14)
 			else:
 				await target_view.play_hit_impact(2.0, 0.12)
