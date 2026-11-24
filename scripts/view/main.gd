@@ -18,6 +18,8 @@ extends Node2D
 @onready var rematch_button: Button = %RematchButton
 
 const REPLAY_STEP_DELAY: float = 0.05
+const PLAYER_ACTIVE_RING_COLOR: Color = Color(0.30, 0.90, 1.0, 0.95)
+const AI_ACTIVE_RING_COLOR: Color = Color(1.0, 0.45, 0.25, 0.95)
 
 var state: BoardState
 var minimax := MinimaxAI.new()
@@ -139,6 +141,7 @@ func _start_new_match() -> void:
 	board_view.render_terrain(state, _current_seed)
 	_center_board()
 	board_view.rebuild_units(state)
+	board_view.set_active_unit(-1)
 	board_view.clear_highlights()
 	board_view.clear_search_overlay()
 	_refresh_ui()
@@ -319,6 +322,7 @@ func _on_end_turn_pressed() -> void:
 	if is_busy or _match_over or state.current_team != 0 or GameRules.is_terminal(state):
 		return
 	selected_unit_id = -1
+	board_view.set_active_unit(-1)
 	board_view.clear_highlights()
 	state.current_team = 1
 	_refresh_ui()
@@ -338,11 +342,13 @@ func _on_tile_clicked(grid_pos: Vector2i) -> void:
 	if not clicked_unit.is_empty() and clicked_unit["team"] == 0 and clicked_unit["hp"] > 0:
 		if clicked_unit["id"] == selected_unit_id:
 			selected_unit_id = -1
+			board_view.set_active_unit(-1)
 			board_view.clear_highlights()
 			_refresh_ui()
 			return
 
 		selected_unit_id = clicked_unit["id"]
+		board_view.set_active_unit(selected_unit_id, PLAYER_ACTIVE_RING_COLOR)
 		_show_unit_options(clicked_unit)
 		_refresh_ui()
 		return
@@ -352,6 +358,7 @@ func _on_tile_clicked(grid_pos: Vector2i) -> void:
 		var selected_unit: Dictionary = _get_unit_by_id(selected_unit_id)
 		if selected_unit.is_empty() or selected_unit["hp"] <= 0:
 			selected_unit_id = -1
+			board_view.set_active_unit(-1)
 			board_view.clear_highlights()
 			return
 
@@ -379,6 +386,7 @@ func _on_tile_clicked(grid_pos: Vector2i) -> void:
 
 	# Clicking empty or non-target tiles clears selection
 	selected_unit_id = -1
+	board_view.set_active_unit(-1)
 	board_view.clear_highlights()
 	_refresh_ui()
 
@@ -507,6 +515,7 @@ func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 		return
 
 	selected_unit_id = -1
+	board_view.set_active_unit(-1)
 	board_view.clear_highlights()
 	_refresh_ui()
 
@@ -522,6 +531,7 @@ func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 func _run_ai_turn() -> void:
 	var gen: int = _match_generation
 	is_busy = true
+	board_view.set_active_unit(-1)
 	_refresh_ui()
 
 	await get_tree().create_timer(0.25).timeout
@@ -550,6 +560,7 @@ func _run_ai_turn() -> void:
 	]
 
 	if act.is_empty():
+		board_view.set_active_unit(-1)
 		state.current_team = 0
 		is_busy = false
 		_refresh_ui()
@@ -559,6 +570,7 @@ func _run_ai_turn() -> void:
 	var unit: Dictionary = _get_unit_by_id(act["unit_id"])
 	var path_res: Dictionary = {}
 	if not unit.is_empty() and unit["hp"] > 0:
+		board_view.set_active_unit(unit["id"], AI_ACTIVE_RING_COLOR)
 		path_res = _apply_path_visualization(unit["pos"], act["move_to"], unit["id"])
 		_refresh_ui()
 		await _replay_search_expansion(path_res)
@@ -580,6 +592,7 @@ func _run_ai_turn() -> void:
 	if gen != _match_generation:
 		return
 
+	board_view.set_active_unit(-1)
 	board_view.clear_highlights()
 	is_busy = false
 	_refresh_ui()

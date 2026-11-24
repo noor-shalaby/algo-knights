@@ -8,6 +8,7 @@ const TEAM_1_FRAMES: SpriteFrames = preload("res://assets/sprites/team1_frames.t
 const HP_FULL_COLOR: Color = Color(0.20, 0.85, 0.30, 1.0)
 const HP_MID_COLOR: Color = Color(0.95, 0.82, 0.15, 1.0)
 const HP_LOW_COLOR: Color = Color(0.90, 0.22, 0.22, 1.0)
+const DEFAULT_ACTIVE_COLOR: Color = Color(0.30, 0.90, 1.0, 0.95)
 
 @onready var anim_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hp_bar: ProgressBar = $HPBar
@@ -18,6 +19,10 @@ var _flash_mat: ShaderMaterial
 var _hp_fill_style: StyleBoxFlat
 var _hp_tween: Tween
 var _active_tween: Tween
+
+var _is_active_unit: bool = false
+var _active_ring_color: Color = DEFAULT_ACTIVE_COLOR
+var _ring_pulse: float = 0.0
 
 func _ready() -> void:
 	_flash_mat = ShaderMaterial.new()
@@ -35,6 +40,35 @@ func _ready() -> void:
 		hp_bar.add_theme_stylebox_override("fill", _hp_fill_style)
 		if not hp_bar.value_changed.is_connected(_on_hp_bar_value_changed):
 			hp_bar.value_changed.connect(_on_hp_bar_value_changed)
+
+func _process(delta: float) -> void:
+	if _is_active_unit and not is_dying:
+		_ring_pulse += delta * 5.0
+		queue_redraw()
+
+func _draw() -> void:
+	if not _is_active_unit or is_dying:
+		return
+
+	var pulse_offset: float = sin(_ring_pulse) * 0.75
+	var center := Vector2(0.0, 5.0)
+	var radius: float = 6.5 + pulse_offset
+	var alpha: float = 0.75 + 0.20 * sin(_ring_pulse)
+
+	var ring_col := Color(_active_ring_color.r, _active_ring_color.g, _active_ring_color.b, alpha)
+	var fill_col := Color(_active_ring_color.r, _active_ring_color.g, _active_ring_color.b, 0.18)
+
+	draw_set_transform(center, 0.0, Vector2(1.0, 0.55))
+	draw_circle(Vector2.ZERO, radius, fill_col)
+	draw_arc(Vector2.ZERO, radius, 0.0, TAU, 24, ring_col, 1.25)
+	draw_set_transform(Vector2.ZERO, 0.0, Vector2.ONE)
+
+func set_active_highlight(active: bool, color: Color = DEFAULT_ACTIVE_COLOR) -> void:
+	_is_active_unit = active
+	_active_ring_color = color
+	if active:
+		_ring_pulse = 0.0
+	queue_redraw()
 
 func _exit_tree() -> void:
 	_kill_tweens()
@@ -68,15 +102,15 @@ func setup(unit_data: Dictionary, world_pos: Vector2) -> void:
 	_kill_tweens()
 	unit_id = unit_data["id"]
 	is_dying = false
+	_is_active_unit = false
 	position = world_pos
 	anim_sprite.position = Vector2.ZERO
 	modulate = Color.WHITE
 	anim_sprite.modulate = Color.WHITE
 	hp_bar.visible = true
 	hp_bar.max_value = max(1, unit_data.get("max_hp", unit_data["hp"]))
-	hp_bar.value = float(max(0, unit_data["hp"]))
-	_apply_hp_gradient(hp_bar.value)
 	update_from_data(unit_data)
+	queue_redraw()
 
 	if unit_data["team"] == 0:
 		anim_sprite.sprite_frames = TEAM_0_FRAMES
@@ -96,18 +130,17 @@ func update_from_data(unit_data: Dictionary) -> void:
 		return
 
 	var target_hp: float = float(max(0, unit_data["hp"]))
-	if hp_bar != null:
-		if not is_equal_approx(hp_bar.value, target_hp):
-			if _hp_tween != null and _hp_tween.is_valid():
-				_hp_tween.kill()
-			_hp_tween = create_tween()
-			_hp_tween.tween_property(hp_bar, "value", target_hp, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
-		else:
-			_apply_hp_gradient(target_hp)
+	if hp_bar != null and not is_equal_approx(hp_bar.value, target_hp):
+		if _hp_tween != null and _hp_tween.is_valid():
+			_hp_tween.kill()
+		_hp_tween = create_tween()
+		_hp_tween.tween_property(hp_bar, "value", target_hp, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
 	if is_dying or unit_data["hp"] <= 0:
+		_is_active_unit = false
 		if hp_bar != null:
 			hp_bar.visible = false
+		queue_redraw()
 		return
 
 	visible = true
@@ -190,6 +223,8 @@ func play_die() -> void:
 	if not is_instance_valid(self) or is_dying:
 		return
 	is_dying = true
+	_is_active_unit = false
+	queue_redraw()
 	if hp_bar != null:
 		hp_bar.visible = false
 	if anim_sprite != null:
@@ -229,8 +264,10 @@ func reset_visuals(unit_data: Dictionary) -> void:
 	_kill_tweens()
 
 	is_dying = false
+	_is_active_unit = false
 	modulate = Color(1.0, 1.0, 1.0, 1.0)
 	visible = unit_data.get("hp", 0) > 0
+	queue_redraw()
 
 	if anim_sprite != null:
 		anim_sprite.position = Vector2.ZERO

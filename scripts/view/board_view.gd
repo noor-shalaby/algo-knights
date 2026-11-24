@@ -110,6 +110,12 @@ func reset_all_units(new_state: BoardState) -> void:
 func get_unit_view(unit_id: int) -> UnitView:
 	return _unit_views.get(unit_id, null)
 
+func set_active_unit(unit_id: int, ring_color: Color = UnitView.DEFAULT_ACTIVE_COLOR) -> void:
+	for uid: int in _unit_views.keys():
+		var view: UnitView = _unit_views[uid]
+		if is_instance_valid(view):
+			view.set_active_highlight(uid == unit_id, ring_color)
+
 func clear_highlights() -> void:
 	_move_outline_tiles.clear()
 	_attack_outline_tiles.clear()
