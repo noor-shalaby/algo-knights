@@ -8,7 +8,7 @@ We've no idea what the prizes for top 5 might be but we're aiming for top 1 anyw
 ## Algorithms & What Each Is Used For
 
 - **Constraint Satisfaction Problem (CSP) Generation**
-  - **Used for:** Building playable, balanced maps under layout constraints and presets (`standard`, `chokepoint`, `dense_stress`) from a seed so terrain and chokepoints stay fair and replayable.
+  - **Used for:** Building playable, balanced maps under layout constraints and presets from a seed so terrain and chokepoints stay fair and replayable.
 - **AI Pathfinding (A\* Search, Uniform Cost Search, and Greedy Best-First Search)**
   - **A\* Search:** Used for AI pathfinding to find optimal paths across varied terrain costs while using a heuristic to head toward the target—balancing path cost and goal distance, with full search steps exposed for visualization.
   - **Uniform Cost Search (UCS):** Used for AI pathfinding to find the lowest-cost path purely by accumulated movement cost (ignoring goal heuristics), making it useful for comparing cost-only expansion against A\* and Greedy.
