@@ -472,6 +472,7 @@ offset_right = 144.0
 grow_vertical = 0
 size_flags_horizontal = 0
 size_flags_vertical = 8
+mouse_filter = 2
 
 [node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/HUD/DebugPanel" unique_id=1155652530]
 layout_mode = 2
