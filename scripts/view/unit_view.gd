@@ -1,7 +1,7 @@
 class_name UnitView
 extends Node2D
 
-const HIT_FLASH_SHADER: Shader = preload("res://shaders/hit_flash.gdshader")
+const HIT_FLASH_SHADER_AND_DISSOLVE: Shader = preload("res://shaders/hit_flash_and_dissolve.gdshader")
 const TEAM_0_FRAMES: SpriteFrames = preload("res://assets/sprites/team0_frames.tres")
 const TEAM_1_FRAMES: SpriteFrames = preload("res://assets/sprites/team1_frames.tres")
 
@@ -15,7 +15,7 @@ var _hp_tween: Tween
 
 func _ready() -> void:
 	_flash_mat = ShaderMaterial.new()
-	_flash_mat.shader = HIT_FLASH_SHADER
+	_flash_mat.shader = HIT_FLASH_SHADER_AND_DISSOLVE
 	_flash_mat.set_shader_parameter("flash_amount", 0.0)
 	anim_sprite.material = _flash_mat
 
@@ -50,12 +50,11 @@ func update_from_data(unit_data: Dictionary) -> void:
 		_hp_tween = create_tween()
 		_hp_tween.tween_property(hp_bar, "value", target_hp, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
 
-	if is_dying:
+	if is_dying or unit_data["hp"] <= 0:
+		if hp_bar != null:
+			hp_bar.visible = false
 		return
 
-	# Only hide immediately if already dead outside of a death animation (e.g., initial load)
-	if unit_data["hp"] <= 0:
-		return
 	visible = true
 
 func play_hit_impact(strength: float = 1.5, duration: float = 0.14) -> void:
@@ -96,24 +95,47 @@ func play_attack() -> void:
 		await anim_sprite.animation_finished
 		play_idle()
 
+func play_disintegrate(duration: float = 0.2) -> void:
+	if anim_sprite == null or not (anim_sprite.material is ShaderMaterial):
+		visible = false
+		return
+
+	var mat := anim_sprite.material as ShaderMaterial
+	mat.set_shader_parameter("flash_amount", 0.0)
+	mat.set_shader_parameter("dissolve_progress", 0.0)
+
+	if hp_bar != null:
+		hp_bar.visible = false
+
+	var tween := create_tween()
+	tween.tween_method(
+		func(v: float) -> void: mat.set_shader_parameter("dissolve_progress", v),
+		0.0,
+		1.0,
+		duration
+	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
+	await tween.finished
+
+	visible = false
+
 func play_die() -> void:
 	if is_dying:
 		return
 	is_dying = true
-	hp_bar.visible = false
-	anim_sprite.position = Vector2.ZERO
-
-	if anim_sprite.sprite_frames != null and anim_sprite.sprite_frames.has_animation("die"):
-		anim_sprite.play("die")
-		await anim_sprite.animation_finished
+	if hp_bar != null:
+		hp_bar.visible = false
+	if anim_sprite != null:
+		anim_sprite.position = Vector2.ZERO
+		if anim_sprite.sprite_frames != null and anim_sprite.sprite_frames.has_animation("die"):
+			anim_sprite.play("die")
+			await anim_sprite.animation_finished
 
 	var fade := create_tween()
 	fade.tween_property(self, "modulate:a", 0.0, 0.2)
 	await fade.finished
 
-	visible = false
 	modulate.a = 1.0
-	hp_bar.visible = true
+	await play_disintegrate()
 
 func move_along_path(path: Array, layer: TileMapLayer, step_duration: float = 0.12) -> void:
 	if path.size() <= 1 or is_dying:

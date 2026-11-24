@@ -1,12 +1,16 @@
 [gd_scene format=3 uid="uid://ncojd27lnym7"]
 
 [ext_resource type="Script" uid="uid://csddq8affp0ma" path="res://scripts/view/unit_view.gd" id="1_d6paq"]
-[ext_resource type="Shader" uid="uid://iqf2o66538cl" path="res://shaders/hit_flash.gdshader" id="2_bl5wp"]
+[ext_resource type="Shader" uid="uid://iqf2o66538cl" path="res://shaders/hit_flash_and_dissolve.gdshader" id="2_bl5wp"]
 [ext_resource type="SpriteFrames" uid="uid://12erheisyb8b" path="res://assets/sprites/team0_frames.tres" id="3_bl5wp"]
 
 [sub_resource type="ShaderMaterial" id="ShaderMaterial_d6paq"]
 shader = ExtResource("2_bl5wp")
 shader_parameter/flash_amount = 0.0
+shader_parameter/dissolve_progress = 0.0
+shader_parameter/pixel_size = 16.0
+shader_parameter/burn_color = Color(1, 0.45, 0.15, 1)
+shader_parameter/burn_width = 0.08
 
 [node name="UnitView" type="Node2D" unique_id=1966297701]
 script = ExtResource("1_d6paq")
