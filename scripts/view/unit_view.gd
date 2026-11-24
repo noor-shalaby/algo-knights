@@ -130,10 +130,6 @@ func play_die() -> void:
 			anim_sprite.play("die")
 			await anim_sprite.animation_finished
 
-	var fade := create_tween()
-	fade.tween_property(self, "modulate:a", 0.0, 0.2)
-	await fade.finished
-
 	modulate.a = 1.0
 	await play_disintegrate()
 
