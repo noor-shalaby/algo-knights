@@ -12,6 +12,9 @@ extends Node2D
 @onready var preset_option: OptionButton = %PresetOption
 @onready var seed_label: Label = %SeedLabel
 @onready var stats_label: Label = %StatsLabel
+@onready var match_over_panel: PanelContainer = %MatchOverPanel
+@onready var match_over_label: Label = %MatchOverLabel
+@onready var rematch_button: Button = %RematchButton
 
 const REPLAY_STEP_DELAY: float = 0.05
 
@@ -23,12 +26,20 @@ var is_busy: bool = false
 var _current_seed: int = 0
 var _map_preset: String = "standard"
 var _replay_generation: int = 0
+var _lock_seed_on_next_start: bool = false
 
 var _search_mode: String = "astar"
 var _last_path_info: String = "Path: -"
 var _last_ai_info: String = "AI: -"
 
+var _match_over: bool = false
+
 func _ready() -> void:
+	if match_over_panel != null:
+		match_over_panel.visible = false
+	if rematch_button != null:
+		rematch_button.pressed.connect(_on_rematch_pressed)
+
 	algo_option.clear()
 	algo_option.add_item("A*", 0)
 	algo_option.add_item("UCS", 1)
@@ -93,12 +104,20 @@ func _unhandled_input(event: InputEvent) -> void:
 
 func _start_new_match() -> void:
 	_replay_generation += 1
+	_match_over = false
+	if match_over_panel != null:
+		match_over_panel.visible = false
+
 	is_busy = false
 	selected_unit_id = -1
 	_last_path_info = "Path: -"
 	_last_ai_info = "AI: -"
 
-	_current_seed = _resolve_seed()
+	if _lock_seed_on_next_start:
+		_lock_seed_on_next_start = false
+	else:
+		_current_seed = _resolve_seed()
+
 	if seed_label != null:
 		seed_label.text = " Seed: %d" % _current_seed
 	if seed_input != null and seed_input.text.strip_edges().is_empty():
@@ -111,7 +130,7 @@ func _start_new_match() -> void:
 	if search_overlay_toggle != null:
 		search_overlay_toggle.set_pressed_no_signal(board_view.show_search_overlay)
 
-	board_view.render_terrain(state)
+	board_view.render_terrain(state, _current_seed)
 	_center_board()
 	board_view.rebuild_units(state)
 	board_view.clear_highlights()
@@ -232,6 +251,20 @@ func _pick_random_tiles(
 
 	return chosen
 
+func _check_match_end() -> bool:
+	if _match_over:
+		return true
+	if not GameRules.is_terminal(state):
+		return false
+
+	_match_over = true
+	if match_over_label != null:
+		var winner: int = GameRules.get_winner(state)
+		match_over_label.text = "P0 Wins!" if winner == 0 else ("AI Wins!" if winner == 1 else "Draw!")
+	if match_over_panel != null:
+		match_over_panel.visible = true
+	return true
+
 func _on_algo_selected(index: int) -> void:
 	match index:
 		0:
@@ -269,11 +302,11 @@ func _on_seed_label_gui_input(event: InputEvent) -> void:
 	if event is InputEventMouseButton and event.pressed and event.button_index == MOUSE_BUTTON_LEFT:
 		DisplayServer.clipboard_set(str(_current_seed))
 		if seed_label != null:
-			seed_label.text = "CP: %d" % _current_seed
-			get_tree().create_timer(1.0).timeout.connect(func() -> void: if seed_label != null: seed_label.text = "Seed: %d" % _current_seed)
+			seed_label.text = "      CP: %d" % _current_seed
+			get_tree().create_timer(1.0).timeout.connect(func() -> void: if seed_label != null: seed_label.text = " Seed: %d" % _current_seed)
 
 func _on_end_turn_pressed() -> void:
-	if is_busy or state.current_team != 0 or GameRules.is_terminal(state):
+	if is_busy or _match_over or state.current_team != 0 or GameRules.is_terminal(state):
 		return
 	selected_unit_id = -1
 	board_view.clear_highlights()
@@ -281,8 +314,12 @@ func _on_end_turn_pressed() -> void:
 	_refresh_ui()
 	await _run_ai_turn()
 
+func _on_rematch_pressed() -> void:
+	_lock_seed_on_next_start = true
+	_start_new_match()
+
 func _on_tile_clicked(grid_pos: Vector2i) -> void:
-	if is_busy or state.current_team != 0 or GameRules.is_terminal(state):
+	if is_busy or _match_over or state.current_team != 0 or GameRules.is_terminal(state):
 		return
 
 	var clicked_unit: Dictionary = _get_unit_at(grid_pos)
@@ -459,6 +496,7 @@ func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 	else:
 		is_busy = false
 		_refresh_ui()
+		_check_match_end()
 
 func _run_ai_turn() -> void:
 	is_busy = true
@@ -489,6 +527,7 @@ func _run_ai_turn() -> void:
 		state.current_team = 0
 		is_busy = false
 		_refresh_ui()
+		_check_match_end()
 		return
 
 	var unit: Dictionary = _get_unit_by_id(act["unit_id"])
@@ -510,6 +549,7 @@ func _run_ai_turn() -> void:
 	board_view.clear_highlights()
 	is_busy = false
 	_refresh_ui()
+	_check_match_end()
 
 func _resolve_action_and_sync(act: Dictionary) -> void:
 	var target_id: int = act.get("target_id", -1)

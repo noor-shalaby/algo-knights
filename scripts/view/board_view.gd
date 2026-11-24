@@ -51,9 +51,17 @@ func _unhandled_input(event: InputEvent) -> void:
 		var grid_pos: Vector2i = terrain_layer.local_to_map(local_pos)
 		tile_clicked.emit(grid_pos)
 
-func render_terrain(state: BoardState) -> void:
+func _pick_seeded_tile(tiles: Array[Vector2i], rng: RandomNumberGenerator) -> Vector2i:
+	if tiles.is_empty():
+		return Vector2i.ZERO
+	return tiles[rng.randi_range(0, tiles.size() - 1)]
+
+func render_terrain(state: BoardState, map_seed: int = 0) -> void:
 	terrain_layer.clear()
 	wall_layer.clear()
+
+	var rng := RandomNumberGenerator.new()
+	rng.seed = map_seed
 
 	for y: int in range(state.height):
 		for x: int in range(state.width):
@@ -61,12 +69,12 @@ func render_terrain(state: BoardState) -> void:
 			var t_type: int = state.get_terrain(pos)
 			match t_type:
 				BoardState.TERRAIN_PLAIN:
-					terrain_layer.set_cell(pos, 0, PLAIN_TILES.pick_random())
+					terrain_layer.set_cell(pos, 0, _pick_seeded_tile(PLAIN_TILES, rng))
 				BoardState.TERRAIN_FOREST:
-					terrain_layer.set_cell(pos, 0, FOREST_TILES.pick_random())
+					terrain_layer.set_cell(pos, 0, _pick_seeded_tile(FOREST_TILES, rng))
 				BoardState.TERRAIN_WALL:
-					terrain_layer.set_cell(pos, 0, PLAIN_TILES.pick_random())
-					wall_layer.set_cell(pos, 0, WALL_TILES.pick_random())
+					terrain_layer.set_cell(pos, 0, _pick_seeded_tile(PLAIN_TILES, rng))
+					wall_layer.set_cell(pos, 0, _pick_seeded_tile(WALL_TILES, rng))
 
 func rebuild_units(state: BoardState) -> void:
 	for child: Node in units_container.get_children():
@@ -90,6 +98,14 @@ func sync_units(state: BoardState) -> void:
 			continue
 		view.position = terrain_layer.map_to_local(u["pos"])
 		view.update_from_data(u)
+
+func reset_all_units(new_state: BoardState) -> void:
+	for u: Dictionary in new_state.units:
+		var uid: int = u["id"]
+		if _unit_views.has(uid):
+			var view: UnitView = _unit_views[uid]
+			view.position = terrain_layer.map_to_local(u["pos"])
+			view.reset_visuals(u)
 
 func get_unit_view(unit_id: int) -> UnitView:
 	return _unit_views.get(unit_id, null)

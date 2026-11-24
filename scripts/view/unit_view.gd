@@ -148,3 +148,28 @@ func move_along_path(path: Array, layer: TileMapLayer, step_duration: float = 0.
 
 	await tween.finished
 	play_idle()
+
+func reset_visuals(unit_data: Dictionary) -> void:
+	if _hp_tween != null and _hp_tween.is_valid():
+		_hp_tween.kill()
+
+	is_dying = false
+	modulate = Color(1.0, 1.0, 1.0, 1.0)
+	visible = unit_data.get("hp", 0) > 0
+
+	if anim_sprite != null:
+		anim_sprite.position = Vector2.ZERO
+		anim_sprite.modulate = Color(1.0, 1.0, 1.0, 1.0)
+		if anim_sprite.sprite_frames != null and anim_sprite.sprite_frames.has_animation("idle"):
+			anim_sprite.play("idle")
+
+	if anim_sprite != null and anim_sprite.material is ShaderMaterial:
+		var mat := anim_sprite.material as ShaderMaterial
+		mat.set_shader_parameter("flash_amount", 0.0)
+		mat.set_shader_parameter("dissolve_progress", 0.0)
+
+	if hp_bar != null:
+		var max_hp: float = float(unit_data.get("max_hp", unit_data.get("hp", 100)))
+		hp_bar.max_value = max_hp
+		hp_bar.value = float(max(0, unit_data.get("hp", 0)))
+		hp_bar.visible = visible
