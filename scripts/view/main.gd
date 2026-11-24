@@ -527,7 +527,7 @@ func _resolve_action_and_sync(act: Dictionary) -> void:
 		if not target_data.is_empty() and target_view != null:
 			var new_hp: int = int(target_data["hp"])
 			var dmg_dealt: int = maxi(0, prev_hp - new_hp)
-			target_view.hp_bar.value = maxi(0, new_hp)
+			target_view.update_from_data(target_data)
 			if dmg_dealt > 0:
 				board_view.spawn_damage_label(target_data["pos"], dmg_dealt)
 			if new_hp > 0:

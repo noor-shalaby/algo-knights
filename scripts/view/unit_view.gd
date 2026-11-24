@@ -11,6 +11,7 @@ const TEAM_1_FRAMES: SpriteFrames = preload("res://assets/sprites/team1_frames.t
 var unit_id: int = -1
 var is_dying: bool = false
 var _flash_mat: ShaderMaterial
+var _hp_tween: Tween
 
 func _ready() -> void:
 	_flash_mat = ShaderMaterial.new()
@@ -42,10 +43,20 @@ func setup(unit_data: Dictionary, world_pos: Vector2) -> void:
 	play_idle()
 
 func update_from_data(unit_data: Dictionary) -> void:
-	hp_bar.value = max(0, unit_data["hp"])
+	var target_hp: float = float(max(0, unit_data["hp"]))
+	if hp_bar != null and not is_equal_approx(hp_bar.value, target_hp):
+		if _hp_tween != null and _hp_tween.is_valid():
+			_hp_tween.kill()
+		_hp_tween = create_tween()
+		_hp_tween.tween_property(hp_bar, "value", target_hp, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+
 	if is_dying:
 		return
-	visible = unit_data["hp"] > 0
+
+	# Only hide immediately if already dead outside of a death animation (e.g., initial load)
+	if unit_data["hp"] <= 0:
+		return
+	visible = true
 
 func play_hit_impact(strength: float = 1.5, duration: float = 0.14) -> void:
 	anim_sprite.position = Vector2.ZERO
