@@ -508,9 +508,9 @@ grow_vertical = 2
 [node name="MarginContainer" type="MarginContainer" parent="CanvasLayer/HUD/MatchOverPanel" unique_id=1494894861]
 layout_mode = 2
 theme_override_constants/margin_left = 8
-theme_override_constants/margin_top = 4
+theme_override_constants/margin_top = 8
 theme_override_constants/margin_right = 8
-theme_override_constants/margin_bottom = 4
+theme_override_constants/margin_bottom = 8
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/HUD/MatchOverPanel/MarginContainer" unique_id=1790029653]
 layout_mode = 2
@@ -518,10 +518,12 @@ layout_mode = 2
 [node name="MatchOverLabel" type="Label" parent="CanvasLayer/HUD/MatchOverPanel/MarginContainer/VBoxContainer" unique_id=2126781431]
 unique_name_in_owner = true
 layout_mode = 2
+theme_override_font_sizes/font_size = 10
 text = "Match Over"
 horizontal_alignment = 1
 
 [node name="RematchButton" type="Button" parent="CanvasLayer/HUD/MatchOverPanel/MarginContainer/VBoxContainer" unique_id=1366414569]
 unique_name_in_owner = true
+custom_minimum_size = Vector2(96, 0)
 layout_mode = 2
 text = "Rematch"
