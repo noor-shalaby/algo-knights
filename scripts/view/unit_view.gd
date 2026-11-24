@@ -12,14 +12,26 @@ var unit_id: int = -1
 var is_dying: bool = false
 var _flash_mat: ShaderMaterial
 var _hp_tween: Tween
+var _active_tween: Tween
 
 func _ready() -> void:
 	_flash_mat = ShaderMaterial.new()
 	_flash_mat.shader = HIT_FLASH_SHADER_AND_DISSOLVE
 	_flash_mat.set_shader_parameter("flash_amount", 0.0)
+	_flash_mat.set_shader_parameter("dissolve_progress", 0.0)
 	anim_sprite.material = _flash_mat
 
+func _exit_tree() -> void:
+	_kill_tweens()
+
+func _kill_tweens() -> void:
+	if _hp_tween != null and _hp_tween.is_valid():
+		_hp_tween.kill()
+	if _active_tween != null and _active_tween.is_valid():
+		_active_tween.kill()
+
 func setup(unit_data: Dictionary, world_pos: Vector2) -> void:
+	_kill_tweens()
 	unit_id = unit_data["id"]
 	is_dying = false
 	position = world_pos
@@ -39,10 +51,14 @@ func setup(unit_data: Dictionary, world_pos: Vector2) -> void:
 
 	if _flash_mat != null:
 		_flash_mat.set_shader_parameter("flash_amount", 0.0)
+		_flash_mat.set_shader_parameter("dissolve_progress", 0.0)
 
 	play_idle()
 
 func update_from_data(unit_data: Dictionary) -> void:
+	if not is_instance_valid(self):
+		return
+
 	var target_hp: float = float(max(0, unit_data["hp"]))
 	if hp_bar != null and not is_equal_approx(hp_bar.value, target_hp):
 		if _hp_tween != null and _hp_tween.is_valid():
@@ -58,6 +74,8 @@ func update_from_data(unit_data: Dictionary) -> void:
 	visible = true
 
 func play_hit_impact(strength: float = 1.5, duration: float = 0.14) -> void:
+	if not is_instance_valid(self) or anim_sprite == null:
+		return
 	anim_sprite.position = Vector2.ZERO
 
 	var tween := create_tween()
@@ -65,7 +83,9 @@ func play_hit_impact(strength: float = 1.5, duration: float = 0.14) -> void:
 
 	if _flash_mat != null:
 		tween.tween_method(
-			func(val: float): _flash_mat.set_shader_parameter("flash_amount", val),
+			func(val: float) -> void:
+				if is_instance_valid(self) and _flash_mat != null:
+					_flash_mat.set_shader_parameter("flash_amount", val),
 			1.0,
 			0.0,
 			duration
@@ -79,25 +99,30 @@ func play_hit_impact(strength: float = 1.5, duration: float = 0.14) -> void:
 	shake_tween.tween_property(anim_sprite, "position:x", 0.0, step_time * 1.5)
 
 	await tween.finished
+	if not is_instance_valid(self) or anim_sprite == null:
+		return
 	anim_sprite.position = Vector2.ZERO
 
 func play_idle() -> void:
-	if is_dying:
+	if not is_instance_valid(self) or is_dying or anim_sprite == null:
 		return
 	if anim_sprite.sprite_frames != null and anim_sprite.sprite_frames.has_animation("idle"):
 		anim_sprite.play("idle")
 
 func play_attack() -> void:
-	if is_dying:
+	if not is_instance_valid(self) or is_dying or anim_sprite == null:
 		return
 	if anim_sprite.sprite_frames != null and anim_sprite.sprite_frames.has_animation("attack"):
 		anim_sprite.play("attack")
 		await anim_sprite.animation_finished
+		if not is_instance_valid(self):
+			return
 		play_idle()
 
 func play_disintegrate(duration: float = 0.2) -> void:
-	if anim_sprite == null or not (anim_sprite.material is ShaderMaterial):
-		visible = false
+	if not is_instance_valid(self) or anim_sprite == null or not (anim_sprite.material is ShaderMaterial):
+		if is_instance_valid(self):
+			visible = false
 		return
 
 	var mat := anim_sprite.material as ShaderMaterial
@@ -107,19 +132,23 @@ func play_disintegrate(duration: float = 0.2) -> void:
 	if hp_bar != null:
 		hp_bar.visible = false
 
-	var tween := create_tween()
-	tween.tween_method(
-		func(v: float) -> void: mat.set_shader_parameter("dissolve_progress", v),
+	_active_tween = create_tween()
+	_active_tween.tween_method(
+		func(v: float) -> void:
+			if is_instance_valid(self):
+				mat.set_shader_parameter("dissolve_progress", v),
 		0.0,
 		1.0,
 		duration
 	).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_IN)
-	await tween.finished
+	await _active_tween.finished
 
+	if not is_instance_valid(self):
+		return
 	visible = false
 
 func play_die() -> void:
-	if is_dying:
+	if not is_instance_valid(self) or is_dying:
 		return
 	is_dying = true
 	if hp_bar != null:
@@ -129,29 +158,36 @@ func play_die() -> void:
 		if anim_sprite.sprite_frames != null and anim_sprite.sprite_frames.has_animation("die"):
 			anim_sprite.play("die")
 			await anim_sprite.animation_finished
+			if not is_instance_valid(self):
+				return
 
+	if not is_instance_valid(self):
+		return
 	modulate.a = 1.0
 	await play_disintegrate()
 
 func move_along_path(path: Array, layer: TileMapLayer, step_duration: float = 0.12) -> void:
-	if path.size() <= 1 or is_dying:
+	if not is_instance_valid(self) or path.size() <= 1 or is_dying or layer == null:
 		return
 
-	if anim_sprite.sprite_frames != null and anim_sprite.sprite_frames.has_animation("walk"):
+	if anim_sprite != null and anim_sprite.sprite_frames != null and anim_sprite.sprite_frames.has_animation("walk"):
 		anim_sprite.play("walk")
 
-	var tween := create_tween()
-	for i in range(1, path.size()):
+	_active_tween = create_tween()
+	for i: int in range(1, path.size()):
 		var grid_pos: Vector2i = path[i]
 		var target_px: Vector2 = layer.map_to_local(grid_pos)
-		tween.tween_property(self, "position", target_px, step_duration)
+		_active_tween.tween_property(self, "position", target_px, step_duration)
 
-	await tween.finished
+	await _active_tween.finished
+	if not is_instance_valid(self):
+		return
 	play_idle()
 
 func reset_visuals(unit_data: Dictionary) -> void:
-	if _hp_tween != null and _hp_tween.is_valid():
-		_hp_tween.kill()
+	if not is_instance_valid(self):
+		return
+	_kill_tweens()
 
 	is_dying = false
 	modulate = Color(1.0, 1.0, 1.0, 1.0)

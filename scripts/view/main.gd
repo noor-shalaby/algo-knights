@@ -5,6 +5,7 @@ extends Node2D
 @onready var end_turn_button: Button = %EndTurnButton
 @onready var algo_option: OptionButton = %AlgoOption
 @onready var new_map_button: Button = %NewMapButton
+@onready var restart_button: Button = %RestartButton
 @onready var search_overlay_toggle: CheckButton = %SearchOverlayToggle
 @onready var alpha_beta_toggle: CheckButton = %AlphaBetaToggle
 @onready var depth_option: OptionButton = %DepthOption
@@ -25,6 +26,7 @@ var is_busy: bool = false
 
 var _current_seed: int = 0
 var _map_preset: String = "standard"
+var _match_generation: int = 0
 var _replay_generation: int = 0
 var _lock_seed_on_next_start: bool = false
 
@@ -49,6 +51,9 @@ func _ready() -> void:
 	new_map_button.pressed.connect(_start_new_match)
 	end_turn_button.pressed.connect(_on_end_turn_pressed)
 	board_view.tile_clicked.connect(_on_tile_clicked)
+
+	if restart_button != null:
+		restart_button.pressed.connect(_on_restart_pressed)
 
 	if search_overlay_toggle != null:
 		search_overlay_toggle.button_pressed = board_view.show_search_overlay
@@ -103,6 +108,7 @@ func _unhandled_input(event: InputEvent) -> void:
 		_refresh_ui()
 
 func _start_new_match() -> void:
+	_match_generation += 1
 	_replay_generation += 1
 	_match_over = false
 	if match_over_panel != null:
@@ -305,6 +311,10 @@ func _on_seed_label_gui_input(event: InputEvent) -> void:
 			seed_label.text = "      CP: %d" % _current_seed
 			get_tree().create_timer(1.0).timeout.connect(func() -> void: if seed_label != null: seed_label.text = " Seed: %d" % _current_seed)
 
+func _on_restart_pressed() -> void:
+	_lock_seed_on_next_start = false
+	_start_new_match()
+
 func _on_end_turn_pressed() -> void:
 	if is_busy or _match_over or state.current_team != 0 or GameRules.is_terminal(state):
 		return
@@ -468,6 +478,7 @@ func _replay_search_expansion(path_res: Dictionary) -> void:
 	_refresh_ui()
 
 func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
+	var gen: int = _match_generation
 	is_busy = true
 	board_view.clear_highlights()
 
@@ -477,15 +488,23 @@ func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 
 	_refresh_ui()
 	await _replay_search_expansion(path_res)
+	if gen != _match_generation:
+		return
 
 	var u_view: UnitView = board_view.get_unit_view(unit["id"])
-	if u_view != null:
+	if is_instance_valid(u_view):
 		if path_res.get("found", false) and path_res["path"].size() > 1:
 			await u_view.move_along_path(path_res["path"], board_view.terrain_layer)
+			if gen != _match_generation or not is_instance_valid(u_view):
+				return
 		if act.has("target_id"):
 			await u_view.play_attack()
+			if gen != _match_generation:
+				return
 
-	await _resolve_action_and_sync(act)
+	await _resolve_action_and_sync(act, gen)
+	if gen != _match_generation:
+		return
 
 	selected_unit_id = -1
 	board_view.clear_highlights()
@@ -493,16 +512,21 @@ func _execute_player_action(unit: Dictionary, act: Dictionary) -> void:
 
 	if not GameRules.is_terminal(state) and state.current_team == 1:
 		await _run_ai_turn()
+		if gen != _match_generation:
+			return
 	else:
 		is_busy = false
 		_refresh_ui()
 		_check_match_end()
 
 func _run_ai_turn() -> void:
+	var gen: int = _match_generation
 	is_busy = true
 	_refresh_ui()
 
 	await get_tree().create_timer(0.25).timeout
+	if gen != _match_generation:
+		return
 
 	minimax.ai_team = 1
 	var ai_res: Dictionary = minimax.choose_action(
@@ -512,6 +536,8 @@ func _run_ai_turn() -> void:
 		func(s: BoardState) -> float: return GameRules.evaluate(s, 1),
 		GameRules.is_terminal
 	)
+	if gen != _match_generation:
+		return
 
 	var act: Dictionary = ai_res.get("action", {})
 	var ab_tag: String = "AB" if minimax.use_alpha_beta else "NO-AB"
@@ -536,22 +562,33 @@ func _run_ai_turn() -> void:
 		path_res = _apply_path_visualization(unit["pos"], act["move_to"], unit["id"])
 		_refresh_ui()
 		await _replay_search_expansion(path_res)
+		if gen != _match_generation:
+			return
 
 		var u_view: UnitView = board_view.get_unit_view(unit["id"])
-		if u_view != null:
+		if is_instance_valid(u_view):
 			if path_res.get("found", false) and path_res["path"].size() > 1:
 				await u_view.move_along_path(path_res["path"], board_view.terrain_layer)
+				if gen != _match_generation or not is_instance_valid(u_view):
+					return
 			if act.has("target_id"):
 				await u_view.play_attack()
+				if gen != _match_generation:
+					return
 
-	await _resolve_action_and_sync(act)
+	await _resolve_action_and_sync(act, gen)
+	if gen != _match_generation:
+		return
 
 	board_view.clear_highlights()
 	is_busy = false
 	_refresh_ui()
 	_check_match_end()
 
-func _resolve_action_and_sync(act: Dictionary) -> void:
+func _resolve_action_and_sync(act: Dictionary, gen: int = -1) -> void:
+	if gen == -1:
+		gen = _match_generation
+
 	var target_id: int = act.get("target_id", -1)
 	var prev_hp: int = 0
 	if target_id != -1:
@@ -560,11 +597,13 @@ func _resolve_action_and_sync(act: Dictionary) -> void:
 			prev_hp = int(before_target.get("hp", 0))
 
 	GameRules.apply_action(state, act)
+	if gen != _match_generation:
+		return
 
 	if target_id != -1:
 		var target_data: Dictionary = _get_unit_by_id(target_id)
 		var target_view: UnitView = board_view.get_unit_view(target_id)
-		if not target_data.is_empty() and target_view != null:
+		if not target_data.is_empty() and is_instance_valid(target_view):
 			var new_hp: int = int(target_data["hp"])
 			var dmg_dealt: int = maxi(0, prev_hp - new_hp)
 			target_view.update_from_data(target_data)
@@ -572,11 +611,18 @@ func _resolve_action_and_sync(act: Dictionary) -> void:
 				board_view.spawn_damage_label(target_data["pos"], dmg_dealt)
 			if new_hp > 0:
 				await target_view.play_hit_impact(1.5, 0.14)
+				if gen != _match_generation:
+					return
 			else:
 				await target_view.play_hit_impact(2.0, 0.12)
+				if gen != _match_generation or not is_instance_valid(target_view):
+					return
 				await target_view.play_die()
+				if gen != _match_generation:
+					return
 
-	board_view.sync_units(state)
+	if gen == _match_generation:
+		board_view.sync_units(state)
 
 func _get_unit_at(pos: Vector2i) -> Dictionary:
 	for u: Dictionary in state.units:
