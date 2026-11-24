@@ -5,12 +5,17 @@ const HIT_FLASH_SHADER_AND_DISSOLVE: Shader = preload("res://shaders/hit_flash_a
 const TEAM_0_FRAMES: SpriteFrames = preload("res://assets/sprites/team0_frames.tres")
 const TEAM_1_FRAMES: SpriteFrames = preload("res://assets/sprites/team1_frames.tres")
 
+const HP_FULL_COLOR: Color = Color(0.20, 0.85, 0.30, 1.0)
+const HP_MID_COLOR: Color = Color(0.95, 0.82, 0.15, 1.0)
+const HP_LOW_COLOR: Color = Color(0.90, 0.22, 0.22, 1.0)
+
 @onready var anim_sprite: AnimatedSprite2D = $AnimatedSprite2D
 @onready var hp_bar: ProgressBar = $HPBar
 
 var unit_id: int = -1
 var is_dying: bool = false
 var _flash_mat: ShaderMaterial
+var _hp_fill_style: StyleBoxFlat
 var _hp_tween: Tween
 var _active_tween: Tween
 
@@ -21,6 +26,16 @@ func _ready() -> void:
 	_flash_mat.set_shader_parameter("dissolve_progress", 0.0)
 	anim_sprite.material = _flash_mat
 
+	if hp_bar != null:
+		var base_fill: StyleBox = hp_bar.get_theme_stylebox("fill")
+		if base_fill is StyleBoxFlat:
+			_hp_fill_style = (base_fill as StyleBoxFlat).duplicate() as StyleBoxFlat
+		else:
+			_hp_fill_style = StyleBoxFlat.new()
+		hp_bar.add_theme_stylebox_override("fill", _hp_fill_style)
+		if not hp_bar.value_changed.is_connected(_on_hp_bar_value_changed):
+			hp_bar.value_changed.connect(_on_hp_bar_value_changed)
+
 func _exit_tree() -> void:
 	_kill_tweens()
 
@@ -29,6 +44,25 @@ func _kill_tweens() -> void:
 		_hp_tween.kill()
 	if _active_tween != null and _active_tween.is_valid():
 		_active_tween.kill()
+
+func _on_hp_bar_value_changed(new_val: float) -> void:
+	_apply_hp_gradient(new_val)
+
+func _apply_hp_gradient(current_val: float) -> void:
+	if _hp_fill_style == null or hp_bar == null:
+		return
+	var max_val: float = maxf(1.0, float(hp_bar.max_value))
+	var ratio: float = clampf(current_val / max_val, 0.0, 1.0)
+
+	var col: Color
+	if ratio >= 0.5:
+		var t_high: float = (ratio - 0.5) / 0.5
+		col = HP_MID_COLOR.lerp(HP_FULL_COLOR, t_high)
+	else:
+		var t_low: float = ratio / 0.5
+		col = HP_LOW_COLOR.lerp(HP_MID_COLOR, t_low)
+
+	_hp_fill_style.bg_color = col
 
 func setup(unit_data: Dictionary, world_pos: Vector2) -> void:
 	_kill_tweens()
@@ -40,6 +74,8 @@ func setup(unit_data: Dictionary, world_pos: Vector2) -> void:
 	anim_sprite.modulate = Color.WHITE
 	hp_bar.visible = true
 	hp_bar.max_value = max(1, unit_data.get("max_hp", unit_data["hp"]))
+	hp_bar.value = float(max(0, unit_data["hp"]))
+	_apply_hp_gradient(hp_bar.value)
 	update_from_data(unit_data)
 
 	if unit_data["team"] == 0:
@@ -60,11 +96,14 @@ func update_from_data(unit_data: Dictionary) -> void:
 		return
 
 	var target_hp: float = float(max(0, unit_data["hp"]))
-	if hp_bar != null and not is_equal_approx(hp_bar.value, target_hp):
-		if _hp_tween != null and _hp_tween.is_valid():
-			_hp_tween.kill()
-		_hp_tween = create_tween()
-		_hp_tween.tween_property(hp_bar, "value", target_hp, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+	if hp_bar != null:
+		if not is_equal_approx(hp_bar.value, target_hp):
+			if _hp_tween != null and _hp_tween.is_valid():
+				_hp_tween.kill()
+			_hp_tween = create_tween()
+			_hp_tween.tween_property(hp_bar, "value", target_hp, 0.25).set_trans(Tween.TRANS_QUAD).set_ease(Tween.EASE_OUT)
+		else:
+			_apply_hp_gradient(target_hp)
 
 	if is_dying or unit_data["hp"] <= 0:
 		if hp_bar != null:
@@ -208,4 +247,5 @@ func reset_visuals(unit_data: Dictionary) -> void:
 		var max_hp: float = float(unit_data.get("max_hp", unit_data.get("hp", 100)))
 		hp_bar.max_value = max_hp
 		hp_bar.value = float(max(0, unit_data.get("hp", 0)))
+		_apply_hp_gradient(hp_bar.value)
 		hp_bar.visible = visible

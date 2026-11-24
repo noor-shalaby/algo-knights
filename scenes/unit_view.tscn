@@ -12,6 +12,17 @@ shader_parameter/pixel_size = 16.0
 shader_parameter/burn_color = Color(1, 0.45, 0.15, 1)
 shader_parameter/burn_width = 0.08
 
+[sub_resource type="StyleBoxFlat" id="StyleBoxFlat_tbgi4"]
+border_width_left = 1
+border_width_top = 1
+border_width_right = 1
+border_width_bottom = 1
+border_color = Color(0, 0, 0, 1)
+corner_radius_top_left = 1
+corner_radius_top_right = 1
+corner_radius_bottom_right = 1
+corner_radius_bottom_left = 1
+
 [node name="UnitView" type="Node2D" unique_id=1966297701]
 script = ExtResource("1_d6paq")
 
@@ -27,6 +38,7 @@ offset_top = -14.0
 offset_right = 8.0
 offset_bottom = -10.0
 mouse_filter = 2
+theme_override_styles/background = SubResource("StyleBoxFlat_tbgi4")
 max_value = 30.0
 value = 30.0
 show_percentage = false
