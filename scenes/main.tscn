@@ -355,10 +355,10 @@ theme_override_font_sizes/font_size = 8
 text = "End Turn"
 
 [node name="BarLeft" type="VBoxContainer" parent="CanvasLayer/HUD/MarginContainer" unique_id=1885563429]
-custom_minimum_size = Vector2(78, 147)
+custom_minimum_size = Vector2(78, 0)
 layout_mode = 2
 size_flags_horizontal = 0
-size_flags_vertical = 0
+size_flags_vertical = 4
 theme_override_constants/separation = 0
 
 [node name="VBoxContainer" type="VBoxContainer" parent="CanvasLayer/HUD/MarginContainer/BarLeft" unique_id=2125496167]
@@ -403,9 +403,41 @@ text = "Restart"
 custom_minimum_size = Vector2(77, 0)
 layout_mode = 2
 size_flags_horizontal = 8
-theme_override_constants/separation = 1
+size_flags_vertical = 4
+theme_override_constants/separation = 0
+
+[node name="AlgoLabel" type="Label" parent="CanvasLayer/HUD/MarginContainer/BarRight" unique_id=1600415523]
+layout_mode = 2
+text = " AI Pathfinding:"
 
 [node name="AlgoOption" type="OptionButton" parent="CanvasLayer/HUD/MarginContainer/BarRight" unique_id=720083385]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_horizontal = 3
+size_flags_vertical = 0
+theme_override_font_sizes/font_size = 8
+item_count = 3
+popup/item_0/text = "astar"
+popup/item_0/id = 0
+popup/item_1/text = "ucs"
+popup/item_1/id = 1
+popup/item_2/text = "greedy"
+popup/item_2/id = 2
+
+[node name="AlphaBetaToggle" type="CheckButton" parent="CanvasLayer/HUD/MarginContainer/BarRight" unique_id=1088230717]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/h_separation = 0
+button_pressed = true
+text = "Alpha
+-Beta"
+
+[node name="AlgoLabel2" type="Label" parent="CanvasLayer/HUD/MarginContainer/BarRight" unique_id=34843423]
+layout_mode = 2
+text = " Minimax Depth:"
+
+[node name="DepthOption" type="OptionButton" parent="CanvasLayer/HUD/MarginContainer/BarRight" unique_id=485818748]
 unique_name_in_owner = true
 layout_mode = 2
 size_flags_horizontal = 3
@@ -427,29 +459,6 @@ theme_override_constants/h_separation = 0
 button_pressed = true
 text = "Search
 Overlay"
-
-[node name="AlphaBetaToggle" type="CheckButton" parent="CanvasLayer/HUD/MarginContainer/BarRight" unique_id=1088230717]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 0
-theme_override_constants/h_separation = 0
-button_pressed = true
-text = "Alpha
--Beta"
-
-[node name="DepthOption" type="OptionButton" parent="CanvasLayer/HUD/MarginContainer/BarRight" unique_id=485818748]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_horizontal = 3
-size_flags_vertical = 0
-theme_override_font_sizes/font_size = 8
-item_count = 3
-popup/item_0/text = "astar"
-popup/item_0/id = 0
-popup/item_1/text = "ucs"
-popup/item_1/id = 1
-popup/item_2/text = "greedy"
-popup/item_2/id = 2
 
 [node name="DebugPanel" type="PanelContainer" parent="CanvasLayer/HUD" unique_id=1660389984]
 custom_minimum_size = Vector2(84, 0)

@@ -66,7 +66,7 @@ func _ready() -> void:
 	if depth_option != null:
 		depth_option.clear()
 		for d: int in [1, 2, 3, 4]:
-			depth_option.add_item("Depth %d" % d, d)
+			depth_option.add_item("%d" % d, d)
 		var default_idx: int = depth_option.get_item_index(minimax.max_depth)
 		if default_idx >= 0:
 			depth_option.select(default_idx)
