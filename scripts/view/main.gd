@@ -312,7 +312,7 @@ func _on_seed_label_gui_input(event: InputEvent) -> void:
 			get_tree().create_timer(1.0).timeout.connect(func() -> void: if seed_label != null: seed_label.text = " Seed: %d" % _current_seed)
 
 func _on_restart_pressed() -> void:
-	_lock_seed_on_next_start = false
+	_lock_seed_on_next_start = true
 	_start_new_match()
 
 func _on_end_turn_pressed() -> void:
