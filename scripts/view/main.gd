@@ -266,7 +266,7 @@ func _check_match_end() -> bool:
 	_match_over = true
 	if match_over_label != null:
 		var winner: int = GameRules.get_winner(state)
-		match_over_label.text = "P0 Wins!" if winner == 0 else ("AI Wins!" if winner == 1 else "Draw!")
+		match_over_label.text = "Player Wins!" if winner == 0 else ("AI Wins!" if winner == 1 else "Draw!")
 	if match_over_panel != null:
 		match_over_panel.visible = true
 	return true
