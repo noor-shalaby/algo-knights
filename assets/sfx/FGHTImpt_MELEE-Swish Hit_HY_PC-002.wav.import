@@ -1,0 +1,24 @@
+[remap]
+
+importer="wav"
+type="AudioStreamWAV"
+uid="uid://darttdnga43l8"
+path="res://.godot/imported/FGHTImpt_MELEE-Swish Hit_HY_PC-002.wav-828573859897af58fcf541cef6c7a6db.sample"
+
+[deps]
+
+source_file="res://assets/sfx/FGHTImpt_MELEE-Swish Hit_HY_PC-002.wav"
+dest_files=["res://.godot/imported/FGHTImpt_MELEE-Swish Hit_HY_PC-002.wav-828573859897af58fcf541cef6c7a6db.sample"]
+
+[params]
+
+force/8_bit=false
+force/mono=false
+force/max_rate=false
+force/max_rate_hz=44100
+edit/trim=false
+edit/normalize=false
+edit/loop_mode=0
+edit/loop_begin=0
+edit/loop_end=-1
+compress/mode=2

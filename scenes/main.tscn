@@ -379,16 +379,7 @@ popup/item_1/id = 1
 popup/item_2/text = "greedy"
 popup/item_2/id = 2
 
-[node name="AlphaBetaToggle" type="CheckButton" parent="CanvasLayer/HUD/MarginContainer/BarLeft" unique_id=1088230717]
-unique_name_in_owner = true
-layout_mode = 2
-size_flags_vertical = 0
-theme_override_constants/h_separation = 0
-button_pressed = true
-text = "Alpha
--Beta"
-
-[node name="AlgoLabel2" type="Label" parent="CanvasLayer/HUD/MarginContainer/BarLeft" unique_id=34843423]
+[node name="MinimaxDepthLabel" type="Label" parent="CanvasLayer/HUD/MarginContainer/BarLeft" unique_id=34843423]
 layout_mode = 2
 text = " Minimax Depth:"
 
@@ -405,6 +396,15 @@ popup/item_1/text = "ucs"
 popup/item_1/id = 1
 popup/item_2/text = "greedy"
 popup/item_2/id = 2
+
+[node name="AlphaBetaToggle" type="CheckButton" parent="CanvasLayer/HUD/MarginContainer/BarLeft" unique_id=1088230717]
+unique_name_in_owner = true
+layout_mode = 2
+size_flags_vertical = 0
+theme_override_constants/h_separation = 0
+button_pressed = true
+text = "Alpha
+-Beta"
 
 [node name="SearchOverlayToggle" type="CheckButton" parent="CanvasLayer/HUD/MarginContainer/BarLeft" unique_id=1600194075]
 unique_name_in_owner = true
